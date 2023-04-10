@@ -14,13 +14,11 @@ Keep in mind that this is the backend API endpoints _only_.  You'll have to prov
 
 The following handlers are provided by this package to expose the necessary parts of the authorization server:
 
- 1. [jwks](#jwks)
- 2. [register](#register)
- 3. [update](#update)
- 4. [cancel](#cancel)
- 5. [password_login](#password-login)
- 6. [password_less_email_request_login](#password-less-email-request-login)
- 7. [password_less_validate_login](#password-less-validate-login)
+ 1. [generate-keys](#generate-keys)
+ 2. [jwks](#jwks)
+ 3. [password_login](#password-login)
+ 4. [password_less_email_request_login](#password-less-email-request-login)
+ 5. [password_less_validate_login](#password-less-validate-login)
 
 Roadmap for 1.0:
 
@@ -29,18 +27,6 @@ Roadmap for 1.0:
 ### JWKS
 
 This handler publishes the JSON Web Key Set (JWKS) that is necessary for JWT consumers to validate JWTs created by the service.
-
-### Register
-
-This handler allows users to register an account with the IdP.
-
-### Update
-
-This handler allows a user to update their profile.
-
-### Cancel
-
-This handler allows people to remove themselves from the system.
 
 ### Password Login
 
