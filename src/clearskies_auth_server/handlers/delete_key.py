@@ -10,9 +10,9 @@ class DeleteKey(Base):
         public_keys = self.fetch_and_check_keys(self.configuration('path_to_public_keys'))
         self.check_for_inconsistencies(private_keys, public_keys)
 
-        key_id = input_output.routing_data().get('id')
+        key_id = input_output.routing_data().get('key_id')
         if key_id not in private_keys:
-            raise NotFound('Key not found')
+            raise NotFound(f"Key '{key_id}' not found")
         if len(private_keys) == 1:
             raise InputError("I'm cowardly refusing to delete the last key.  Sorry.")
 

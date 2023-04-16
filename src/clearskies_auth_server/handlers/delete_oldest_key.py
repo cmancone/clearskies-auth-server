@@ -12,7 +12,7 @@ class DeleteOldestKey(Base):
 
         if len(private_keys) == 1:
             raise InputError("I'm cowardly refusing to delete the last key.  Sorry.")
-        key_id = min(private_keys, key=lambda key_id: keys[key_id]['issue_date'])
+        key_id = min(private_keys, key=lambda key_id: private_keys[key_id]['issue_date'])
 
         private_keys = {key: value for (key, value) in private_keys.items() if key != key_id}
         public_keys = {key: value for (key, value) in public_keys.items() if key != key_id}
