@@ -1,7 +1,5 @@
 import json
 from clearskies.handlers.base import Base as HandlerBase
-
-
 class Base(HandlerBase):
     _secrets = None
     _datetime = None
@@ -21,17 +19,13 @@ class Base(HandlerBase):
 
     def _check_configuration(self, configuration):
         super()._check_configuration(configuration)
-        error_prefix = 'Configuration error for %s:' % (
-            self.__class__.__name__)
+        error_prefix = 'Configuration error for %s:' % (self.__class__.__name__)
         for config_name in ['path_to_private_keys', 'path_to_public_keys']:
             if not configuration.get(config_name):
-                raise ValueError(
-                    f"{error_prefix} the configuration value '{config_name}' is required but missing."
-                )
+                raise ValueError(f"{error_prefix} the configuration value '{config_name}' is required but missing.")
         algorithm = configuration.get('algorithm')
         if algorithm and algorithm != 'RSA256':
-            raise ValueError(
-                'Currently only RSA256 is supported for the algorithm.')
+            raise ValueError('Currently only RSA256 is supported for the algorithm.')
         key_type = configuration.get('key_type')
         if key_type and key_type != 'RSA':
             raise ValueError('Currently only RSA keys are supported.')
@@ -76,14 +70,14 @@ class Base(HandlerBase):
         extra_public_keys = public_key_ids - private_key_ids
         if extra_private_keys:
             raise ValueError(
-                "There are some private keys that don't have corresponding public keys.  Those are: '"
-                + "', '".join(extra_private_keys) +
+                "There are some private keys that don't have corresponding public keys.  Those are: '" +
+                "', '".join(extra_private_keys) +
                 "'.  You'll have to manually restore the missing key or delete the extra key."
             )
         if extra_public_keys:
             raise ValueError(
-                "There are some public keys that don't have corresponding private keys.  Those are: '"
-                + "', '".join(extra_public_keys) +
+                "There are some public keys that don't have corresponding private keys.  Those are: '" +
+                "', '".join(extra_public_keys) +
                 + "'.  You'll have to manually restore the missing key or delete the extra key."
             )
 

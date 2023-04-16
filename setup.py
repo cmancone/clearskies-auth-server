@@ -19,8 +19,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 setup(
     name='clear-skies-auth-server',
     version='0.9',
-    description=
-    'clearskies bindings for managing an authentication server that issues JWTs',
+    description='clearskies bindings for managing an authentication server that issues JWTs',
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/cmancone/clearskies-auth-server',

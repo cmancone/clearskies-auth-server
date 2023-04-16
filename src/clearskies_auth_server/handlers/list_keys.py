@@ -2,16 +2,11 @@ from jwcrypto import jwk
 import json
 
 from .base import Base
-
-
 class ListKeys(Base):
-
     def handle(self, input_output):
         # fetch the old keys
-        private_keys = self.fetch_and_check_keys(
-            self.configuration('path_to_private_keys'))
-        public_keys = self.fetch_and_check_keys(
-            self.configuration('path_to_private_keys'))
+        private_keys = self.fetch_and_check_keys(self.configuration('path_to_private_keys'))
+        public_keys = self.fetch_and_check_keys(self.configuration('path_to_private_keys'))
         self.check_for_inconsistencies(private_keys, public_keys)
 
         keys = [{

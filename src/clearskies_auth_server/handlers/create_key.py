@@ -2,8 +2,6 @@ from jwcrypto import jwk
 import json
 
 from .base import Base
-
-
 class CreateKey(Base):
     _uuid = None
 
@@ -13,10 +11,8 @@ class CreateKey(Base):
 
     def handle(self, input_output):
         # fetch the old keys
-        private_keys = self.fetch_and_check_keys(
-            self.configuration('path_to_private_keys'))
-        public_keys = self.fetch_and_check_keys(
-            self.configuration('path_to_public_keys'))
+        private_keys = self.fetch_and_check_keys(self.configuration('path_to_private_keys'))
+        public_keys = self.fetch_and_check_keys(self.configuration('path_to_public_keys'))
         self.check_for_inconsistencies(private_keys, public_keys)
 
         # make a new key
@@ -32,17 +28,14 @@ class CreateKey(Base):
         # and add it to our dictionaries
         private_keys[key_id] = {
             **json.loads(key.export_private()), 'issue_date':
-            self._datetime.datetime.now(
-                self._datetime.timezone.utc).isoformat()
+            self._datetime.datetime.now(self._datetime.timezone.utc).isoformat()
         }
         public_keys[key_id] = {
             **json.loads(key.export_public()), 'issue_date':
-            self._datetime.datetime.now(
-                self._datetime.timezone.utc).isoformat()
+            self._datetime.datetime.now(self._datetime.timezone.utc).isoformat()
         }
 
-        self.save_keys(self.configuration('path_to_private_keys'),
-                       private_keys)
+        self.save_keys(self.configuration('path_to_private_keys'), private_keys)
         self.save_keys(self.configuration('path_to_public_keys'), public_keys)
 
         return self.success(input_output, {'id': key_id})
