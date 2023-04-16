@@ -1,7 +1,13 @@
 from . import handlers
 import clearskies
 
-def key_manager(path_to_public_keys, path_to_private_keys, algorithm=None, key_type=None, key_size=None, authentication=None):
+
+def key_manager(path_to_public_keys,
+                path_to_private_keys,
+                algorithm=None,
+                key_type=None,
+                key_size=None,
+                authentication=None):
     handler_config = {
         'path_to_public_keys': path_to_public_keys,
         'path_to_private_keys': path_to_private_keys,
@@ -9,7 +15,10 @@ def key_manager(path_to_public_keys, path_to_private_keys, algorithm=None, key_t
         'key_type': key_type,
         'key_size': key_size,
     }
-    handler_config = {key: value for (key, value) in handler_config.items() if value}
+    handler_config = {
+        key: value
+        for (key, value) in handler_config.items() if value
+    }
 
     routing_config = {
         'routes': [

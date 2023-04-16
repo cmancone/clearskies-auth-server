@@ -21,13 +21,17 @@ class Base(HandlerBase):
 
     def _check_configuration(self, configuration):
         super()._check_configuration(configuration)
-        error_prefix = 'Configuration error for %s:' % (self.__class__.__name__)
+        error_prefix = 'Configuration error for %s:' % (
+            self.__class__.__name__)
         for config_name in ['path_to_private_keys', 'path_to_public_keys']:
             if not configuration.get(config_name):
-                raise ValueError(f"{error_prefix} the configuration value '{config_name}' is required but missing.")
+                raise ValueError(
+                    f"{error_prefix} the configuration value '{config_name}' is required but missing."
+                )
         algorithm = configuration.get('algorithm')
         if algorithm and algorithm != 'RSA256':
-            raise ValueError('Currently only RSA256 is supported for the algorithm.')
+            raise ValueError(
+                'Currently only RSA256 is supported for the algorithm.')
         key_type = configuration.get('key_type')
         if key_type and key_type != 'RSA':
             raise ValueError('Currently only RSA keys are supported.')
@@ -40,11 +44,15 @@ class Base(HandlerBase):
         try:
             key_data = json.loads(raw_data)
         except json.JSONDecodeError as e:
-            raise ValueError(f"I fetched the key data from '{path}'.  It should have been a JSON encoded object but it isn't JSON.  Sorry :(")
+            raise ValueError(
+                f"I fetched the key data from '{path}'.  It should have been a JSON encoded object but it isn't JSON.  Sorry :("
+            )
 
         actual_type = type(key_data)
         if actual_type != dict:
-            raise ValueError(f"The key data stored in '{path}' should have been a dictionary but instead was a '{actual_type}'")
+            raise ValueError(
+                f"The key data stored in '{path}' should have been a dictionary but instead was a '{actual_type}'"
+            )
 
         # that's as far as we're going to get for now.
         return key_data
@@ -67,9 +75,17 @@ class Base(HandlerBase):
         extra_private_keys = private_key_ids - public_key_ids
         extra_public_keys = public_key_ids - private_key_ids
         if extra_private_keys:
-            raise ValueError("There are some private keys that don't have corresponding public keys.  Those are: '" + "', '".join(extra_private_keys) + "'.  You'll have to manually restore the missing key or delete the extra key.")
+            raise ValueError(
+                "There are some private keys that don't have corresponding public keys.  Those are: '"
+                + "', '".join(extra_private_keys) +
+                "'.  You'll have to manually restore the missing key or delete the extra key."
+            )
         if extra_public_keys:
-            raise ValueError("There are some public keys that don't have corresponding private keys.  Those are: '" + "', '".join(extra_public_keys) +  + "'.  You'll have to manually restore the missing key or delete the extra key.")
+            raise ValueError(
+                "There are some public keys that don't have corresponding private keys.  Those are: '"
+                + "', '".join(extra_public_keys) +
+                + "'.  You'll have to manually restore the missing key or delete the extra key."
+            )
 
     def save_keys(self, path, keys):
         self._secrets.upsert(path, json.dumps(keys))
