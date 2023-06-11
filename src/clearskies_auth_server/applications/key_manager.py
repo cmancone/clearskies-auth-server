@@ -1,8 +1,13 @@
-from . import handlers
+from clearskies_auth_server import handlers
 import clearskies
 def key_manager(
-    path_to_public_keys, path_to_private_keys, algorithm=None, key_type=None, key_size=None, authentication=None
-):
+    path_to_public_keys: str,
+    path_to_private_keys: str,
+    algorithm: str = None,
+    key_type: str = None,
+    key_size: int = None,
+    authentication: clearskies.BindingConfig = None
+) -> clearskies.Application:
     handler_config = {
         'path_to_public_keys': path_to_public_keys,
         'path_to_private_keys': path_to_private_keys,

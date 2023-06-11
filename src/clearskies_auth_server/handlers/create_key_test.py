@@ -3,29 +3,10 @@ import unittest
 from unittest.mock import MagicMock, call
 from types import SimpleNamespace
 from jwcrypto import jwk
+from .key_base_test import KeyBaseTest
 from .create_key import CreateKey
 from clearskies.contexts import test
-class CreateKeyTest(unittest.TestCase):
-    def setUp(self):
-        self.key_id = 'my_test_key_1'
-        self.key = jwk.JWK.generate(
-            kty='RSA',
-            size=2048,
-            kid=self.key_id,
-            alg='RSA256',
-            use='sig',
-        )
-
-        self.private_keys = {self.key_id: {**json.loads(self.key.export_private()), 'issued_at': ''}}
-        self.public_keys = {self.key_id: {**json.loads(self.key.export_public()), 'issued_at': ''}}
-
-        self.fetch_keys = MagicMock()
-        self.fetch_keys.side_effect = [json.dumps(self.private_keys), json.dumps(self.public_keys)]
-        self.secrets = SimpleNamespace(
-            get=self.fetch_keys,
-            upsert=MagicMock(),
-        )
-
+class CreateKeyTest(KeyBaseTest):
     def test_create_key(self):
         create_key = test(
             {
@@ -64,3 +45,66 @@ class CreateKeyTest(unittest.TestCase):
 
         saved_keys = list(json.loads(upsert_calls[1].args[1]).keys())
         self.assertEquals([self.key_id, key_id], saved_keys)
+
+    def test_fetch_and_check_keys_success(self):
+        test = CreateKey('di', self.secrets, 'datetime', 'uuid')
+        keys = test.fetch_and_check_keys('/path/to/private')
+
+        self.assertDictEqual(
+            self.private_keys,
+            keys,
+        )
+
+        self.secrets.get.assert_called_with('/path/to/private', silent_if_not_found=True)
+
+    def test_fetch_and_check_keys_success_empty(self):
+        secrets = SimpleNamespace(get=MagicMock(return_value=None), )
+        test = CreateKey('di', secrets, 'datetime', 'uuid')
+        keys = test.fetch_and_check_keys('/path/to/private')
+
+        self.assertDictEqual(
+            {},
+            keys,
+        )
+
+    def test_fetch_and_check_keys_not_json(self):
+        secrets = SimpleNamespace(get=MagicMock(return_value='sup'), )
+        test = CreateKey('di', secrets, 'datetime', 'uuid')
+
+        with self.assertRaises(ValueError) as context:
+            keys = test.fetch_and_check_keys('/path/to/private')
+        self.assertEquals(
+            "I fetched the key data from '/path/to/private'.  It should have been a JSON encoded object but it isn't JSON.  Sorry :(",
+            str(context.exception)
+        )
+
+    def test_fetch_and_check_keys_wrong_type(self):
+        secrets = SimpleNamespace(get=MagicMock(return_value='[]'), )
+        test = CreateKey('di', secrets, 'datetime', 'uuid')
+
+        with self.assertRaises(ValueError) as context:
+            keys = test.fetch_and_check_keys('/path/to/private')
+        self.assertEquals(
+            "The key data stored in '/path/to/private' should have been a dictionary but instead was a 'list'",
+            str(context.exception)
+        )
+
+    def test_check_consistencies_extra_private_key(self):
+        test = CreateKey('di', 'secrets', 'datetime', 'uuid')
+
+        with self.assertRaises(ValueError) as context:
+            test.check_for_inconsistencies({'key_id_1': 1, 'key_id_2': 2}, {'key_id_1': 1})
+        self.assertEquals(
+            "There are some private keys that don't have corresponding public keys.  Those are: 'key_id_2'.  You'll have to manually restore the missing key or delete the extra key.",
+            str(context.exception)
+        )
+
+    def test_check_consistencies_extra_public_key(self):
+        test = CreateKey('di', 'secrets', 'datetime', 'uuid')
+
+        with self.assertRaises(ValueError) as context:
+            test.check_for_inconsistencies({'key_id_1': 1}, {'key_id_1': 1, 'key_id_2': 2})
+        self.assertEquals(
+            "There are some public keys that don't have corresponding private keys.  Those are: 'key_id_2'.  You'll have to manually restore the missing key or delete the extra key.",
+            str(context.exception)
+        )

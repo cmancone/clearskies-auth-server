@@ -1,8 +1,8 @@
 from jwcrypto import jwk
 import json
 
-from .base import Base
-class ListKeys(Base):
+from .key_base import KeyBase
+class ListKeys(KeyBase):
     def handle(self, input_output):
         # fetch the old keys
         private_keys = self.fetch_and_check_keys(self.configuration('path_to_private_keys'))

@@ -1,6 +1,6 @@
 import json
 from clearskies.handlers.base import Base as HandlerBase
-class Base(HandlerBase):
+class KeyBase(HandlerBase):
     _secrets = None
     _datetime = None
 
@@ -45,7 +45,7 @@ class Base(HandlerBase):
         actual_type = type(key_data)
         if actual_type != dict:
             raise ValueError(
-                f"The key data stored in '{path}' should have been a dictionary but instead was a '{actual_type}'"
+                f"The key data stored in '{path}' should have been a dictionary but instead was a '{actual_type.__name__}'"
             )
 
         # that's as far as we're going to get for now.
@@ -78,7 +78,7 @@ class Base(HandlerBase):
             raise ValueError(
                 "There are some public keys that don't have corresponding private keys.  Those are: '" +
                 "', '".join(extra_public_keys) +
-                + "'.  You'll have to manually restore the missing key or delete the extra key."
+                "'.  You'll have to manually restore the missing key or delete the extra key."
             )
 
     def save_keys(self, path, keys):

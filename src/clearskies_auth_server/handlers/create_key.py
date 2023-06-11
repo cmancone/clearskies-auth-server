@@ -1,8 +1,8 @@
 from jwcrypto import jwk
 import json
 
-from .base import Base
-class CreateKey(Base):
+from .key_base import KeyBase
+class CreateKey(KeyBase):
     _uuid = None
 
     def __init__(self, di, secrets, datetime, uuid):

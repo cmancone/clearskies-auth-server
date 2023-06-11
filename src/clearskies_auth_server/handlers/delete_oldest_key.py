@@ -2,8 +2,8 @@ from jwcrypto import jwk
 import json
 
 from clearskies.handlers.exceptions import InputError
-from .base import Base
-class DeleteOldestKey(Base):
+from .key_base import KeyBase
+class DeleteOldestKey(KeyBase):
     def handle(self, input_output):
         # fetch the old keys
         private_keys = self.fetch_and_check_keys(self.configuration('path_to_private_keys'))
