@@ -8,6 +8,9 @@ class PasswordLogin(KeyBase):
         'user_model_class': '',
         'username_column_name': 'email',
         'password_column_name': 'password',
+        'jwt_lifetime_seconds': 86400,
+        'issuer': '',
+        'audience': '',
         'path_to_private_keys': '',
         'key_cache_duration': 7200,
         'claims_callable': None,
@@ -17,6 +20,8 @@ class PasswordLogin(KeyBase):
     }
 
     _required_configurations = [
+        'issuer',
+        'audience',
         'user_model_class',
         'username_column_name',
         'password_column_name',
@@ -24,8 +29,9 @@ class PasswordLogin(KeyBase):
         'key_cache_duration',
     ]
 
-    def __init__(self, di):
+    def __init__(self, di, datetime):
         self.di = di
+        self.datetime = datetime
         self._columns = None
 
     def _check_configuration(self, configuration):
@@ -76,7 +82,12 @@ class PasswordLogin(KeyBase):
                 f"{error_prefix} the provided password column, '{password_column_name}', in model '{user_model_class.__name__}' does not implement the required 'validate_password' method.  You should double check to make sure it is using the 'clearskies_auth_server.columns.password column' type."
             )
 
-        if 'claims_column_names' in configuration:
+        if not configuration.get('claims_callable') and not configuration.get('claims_column_names'):
+            raise ValueError(
+                f"{error_prefix} you set both 'claims_callable' and 'claims_column_names' but only one can be set."
+            )
+
+        if configuration.get('claims_column_names'):
             claims_column_names = configuration['claims_column_names']
             if not isinstance(claims_column_names, list):
                 raise ValueError(
@@ -172,16 +183,17 @@ class PasswordLogin(KeyBase):
     def get_jwt_claims(self, user):
         if self.configuration('input_error_callable'):
             claims = self._di.call_function(user=user)
-        elif self.configuration('claims_column_names'):
+        else:
             claims = {
                 claim_column: user.get(claim_column)
                 for claim_column in self.configuration('claims_column_names')
             }
-        else:
-            claims = user.data
 
+        now = self.datetime.datetime.now(self.datetime.timezone.utc)
         claims = {
+            'aud': self.configuration('audience'),
+            'iss': self.configuration('issuer'),
+            'exp': int((now + datetime.timedelta(seconds=self.configuration('jwt_lifetime_seconds'))).timestamp()),
             **claims,
-        # issue date,
-        # expiration
+            'iat': int(now.timestamp()),
         }
