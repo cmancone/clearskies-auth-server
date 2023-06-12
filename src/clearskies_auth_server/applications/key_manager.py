@@ -1,13 +1,21 @@
 from clearskies_auth_server import handlers
 import clearskies
 def key_manager(
-    path_to_public_keys: str,
-    path_to_private_keys: str,
+    path_to_public_keys: str = '',
+    path_to_private_keys: str = '',
     algorithm: str = None,
     key_type: str = None,
     key_size: int = None,
     authentication: clearskies.BindingConfig = None
 ) -> clearskies.Application:
+    if not path_to_public_keys:
+        raise ValueError(
+            "You must provide the path to the public keys in your secret manager when using the key_manager application"
+        )
+    if not path_to_private_keys:
+        raise ValueError(
+            "You must provide the path to the public keys in your secret manager when using the key_manager application"
+        )
     handler_config = {
         'path_to_public_keys': path_to_public_keys,
         'path_to_private_keys': path_to_private_keys,

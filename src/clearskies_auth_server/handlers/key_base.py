@@ -1,8 +1,11 @@
+from jwcrypto import jwk
 import json
 from clearskies.handlers.base import Base as HandlerBase
 class KeyBase(HandlerBase):
     _secrets = None
     _datetime = None
+    _key_cache = None
+    _cache_time = None
 
     _configuration_defaults = {
         'path_to_public_keys': '',
@@ -10,12 +13,14 @@ class KeyBase(HandlerBase):
         'algorithm': 'RSA256',
         'key_type': 'RSA',
         'key_size': 2048,
+        'key_cache_duration': 7200,
     }
 
     def __init__(self, di, secrets, datetime):
         super().__init__(di)
         self._secrets = secrets
         self._datetime = datetime
+        self._key_cache = {}
 
     def _check_configuration(self, configuration):
         super()._check_configuration(configuration)
@@ -30,7 +35,14 @@ class KeyBase(HandlerBase):
         if key_type and key_type != 'RSA':
             raise ValueError('Currently only RSA keys are supported.')
 
-    def fetch_and_check_keys(self, path):
+    def fetch_and_check_keys(self, path, use_cache=True):
+        if use_cache and path in self._key_cache:
+            cache_valid_time = self._datetime.datetime.now() - self._datetime.timedelta(
+                seconds=self.configuration('cache_valid_time')
+            )
+            if self._key_cache[path]['cache_time'] > cache_valid_time:
+                return self._key_cache[path]['key_data']
+
         raw_data = self._secrets.get(path, silent_if_not_found=True)
         if not raw_data:
             return {}
@@ -48,8 +60,21 @@ class KeyBase(HandlerBase):
                 f"The key data stored in '{path}' should have been a dictionary but instead was a '{actual_type.__name__}'"
             )
 
+        if use_cache:
+            self._key_cache[path] = {'cache_time': self._datetime.datetime.now(), 'key_data': key_data}
+
         # that's as far as we're going to get for now.
         return key_data
+
+    def get_oldest_private_key(self, path, use_cache=True, as_json=True):
+        keys = self.fetch_and_check_keys(path, use_cache=use_cache)
+        oldest_key_id = min(keys, key=lambda key_id: keys[key_id]['issue_date'])
+        return keys[oldest_key_id] if as_json else jwk.JWK(**keys[oldest_key_id])
+
+    def get_youngest_private_key(self, path, use_cache=True, as_json=True):
+        keys = self.fetch_and_check_keys(path, use_cache=use_cache)
+        youngest_key_id = max(keys, key=lambda key_id: keys[key_id]['issue_date'])
+        return keys[youngest_key_id] if as_json else jwk.JWK(**keys[youngest_key_id])
 
     def check_for_inconsistencies(self, private_keys, public_keys):
         """

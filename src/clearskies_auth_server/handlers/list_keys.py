@@ -6,7 +6,7 @@ class ListKeys(KeyBase):
     def handle(self, input_output):
         # fetch the old keys
         private_keys = self.fetch_and_check_keys(self.configuration('path_to_private_keys'))
-        public_keys = self.fetch_and_check_keys(self.configuration('path_to_private_keys'))
+        public_keys = self.fetch_and_check_keys(self.configuration('path_to_public_keys'))
         self.check_for_inconsistencies(private_keys, public_keys)
 
         keys = [{
