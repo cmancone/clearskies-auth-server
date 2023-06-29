@@ -39,5 +39,5 @@ setup(
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     python_requires=">=3.6",
-    install_requires=['clear-skies', 'jwcrypto', 'python-jose'],
+    install_requires=['clear-skies', 'jwcrypto', 'python-jose', 'passlib', 'argon2_cffi'],
 )

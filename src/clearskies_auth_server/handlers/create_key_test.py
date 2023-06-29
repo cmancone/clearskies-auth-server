@@ -6,6 +6,7 @@ from jwcrypto import jwk
 from .key_base_test import KeyBaseTest
 from .create_key import CreateKey
 from clearskies.contexts import test
+import datetime
 class CreateKeyTest(KeyBaseTest):
     def test_create_key(self):
         create_key = test(
@@ -47,7 +48,7 @@ class CreateKeyTest(KeyBaseTest):
         self.assertEquals([self.key_id, key_id], saved_keys)
 
     def test_fetch_and_check_keys_success(self):
-        test = CreateKey('di', self.secrets, 'datetime', 'uuid')
+        test = CreateKey('di', self.secrets, datetime, 'uuid')
         keys = test.fetch_and_check_keys('/path/to/private')
 
         self.assertDictEqual(
