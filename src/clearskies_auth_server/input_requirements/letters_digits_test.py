@@ -1,9 +1,9 @@
 import unittest
 from unittest.mock import MagicMock
-from .letters_and_digits import LettersAndDigits
-class LettersAndDigitsTest(unittest.TestCase):
+from .letters_digits import LettersDigits
+class LettersDigitsTest(unittest.TestCase):
     def setUp(self):
-        self.letters_and_digits = LettersAndDigits()
+        self.letters_and_digits = LettersDigits()
         self.letters_and_digits.column_name = "password"
 
     def test_check(self):
