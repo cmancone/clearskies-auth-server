@@ -1,3 +1,4 @@
+import datetime
 from collections import OrderedDict
 import unittest
 from unittest.mock import MagicMock, call
@@ -39,6 +40,7 @@ class PasswordLoginTest(KeyBaseTest):
             {
                 'handler_class': PasswordLogin,
                 'handler_config': {
+                    'claims_column_names': ['email'],
                     'path_to_private_keys': '/path/to/private',
                     'path_to_public_keys': '/path/to/public',
                     'user_model_class': User,
@@ -49,14 +51,16 @@ class PasswordLoginTest(KeyBaseTest):
             bindings={'secrets': self.secrets},
             binding_classes=[User, AuditRecord],
         )
+        now = login.build('datetime').datetime.now(datetime.timezone.utc)
 
         users = login.build("users")
-        users.create({
+        user = users.create({
             'email': 'cmancone@example.com',
             'password': 'crappypassword',
         })
 
-        login(body={
+        response = login(body={
             'email': 'cmancone@example.com',
             'password': 'crappypassword',
         })
+        self.assertEquals(response['expires_at'])

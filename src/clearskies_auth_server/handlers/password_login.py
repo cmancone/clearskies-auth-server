@@ -38,9 +38,8 @@ class PasswordLogin(KeyBase):
         'path_to_public_keys',
     ]
 
-    def __init__(self, di, datetime):
-        self._di = di
-        self.datetime = datetime
+    def __init__(self, di, secrets, datetime):
+        super().__init__(di, secrets, datetime)
         self._columns = None
 
     def _check_configuration(self, configuration):
@@ -95,6 +94,10 @@ class PasswordLogin(KeyBase):
         if configuration.get('claims_callable') and configuration.get('claims_column_names'):
             raise ValueError(
                 f"{error_prefix} you set both 'claims_callable' and 'claims_column_names' but only one can be set."
+            )
+        if not configuration.get('claims_callable') and not configuration.get('claims_column_names'):
+            raise ValueError(
+                f"{error_prefix} you must set either 'claims_callable' or 'claims_column_names' but neither was set."
             )
 
         if configuration.get('claims_column_names'):
@@ -152,7 +155,7 @@ class PasswordLogin(KeyBase):
         return None
 
     def apply_default_configuation(self, configuration):
-        if not configuration.get('audit_column_name') and configuration.get('audit'):
+        if not configuration.get('audit_column_name') and ('audit' not in configuration or configuration['audit']):
             configuration['audit_column_name'] = self._get_audit_column(self._columns).name
         return super().apply_default_configuation(configuration)
 
@@ -169,7 +172,7 @@ class PasswordLogin(KeyBase):
         username_column_name = self.configuration('username_column_name')
         password_column_name = self.configuration('password_column_name')
         password_column = self._columns[password_column_name]
-        user = self.users.where(f'{username_column_name}=' + request_data[username_column_name])
+        user = self.users.find(f'{username_column_name}=' + request_data[username_column_name])
 
         # no user found
         if not user.exists:
@@ -221,7 +224,7 @@ class PasswordLogin(KeyBase):
 
         return input_output.respond({
             'token': token.serialize(),
-            'expires_at': jwt_claims['expires_at'],
+            'expires_at': jwt_claims['exp'],
         }, 200)
 
     def account_locked(self, user):
@@ -294,8 +297,8 @@ class PasswordLogin(KeyBase):
                 for claim_column in self.configuration('claims_column_names')
             }
 
-        now = self.datetime.datetime.now(self.datetime.timezone.utc)
-        claims = {
+        now = self._datetime.datetime.now(self._datetime.timezone.utc)
+        return {
             'aud': self.configuration('audience'),
             'iss': self.configuration('issuer'),
             'exp': int((now + datetime.timedelta(seconds=self.configuration('jwt_lifetime_seconds'))).timestamp()),
