@@ -1,4 +1,5 @@
 import datetime
+from jose import jwt
 from collections import OrderedDict
 import unittest
 from unittest.mock import MagicMock, call
@@ -35,7 +36,128 @@ class User(clearskies.Model):
             audit("audit", audit_models_class=AuditRecord),
         ])
 class PasswordLoginTest(KeyBaseTest):
+    def setUp(self):
+        super().setUp()
+        self.login = test(
+            {
+                'handler_class': PasswordLogin,
+                'handler_config': {
+                    'claims_column_names': ['email'],
+                    'path_to_private_keys': '/path/to/private',
+                    'path_to_public_keys': '/path/to/public',
+                    'user_model_class': User,
+                    'issuer': 'https://example.com',
+                    'audience': 'example.com',
+                },
+            },
+            bindings={'secrets': self.secrets},
+            binding_classes=[User, AuditRecord],
+        )
+
+        self.users = self.login.build("users")
+        self.user = self.users.create({
+            'email': 'cmancone@example.com',
+            'password': 'crappypassword',
+        })
+
+    def never(self):
+        return "not gonna happen"
+
+    def always(self):
+        return ""
+
     def test_success(self):
+        response = self.login(body={
+            'email': 'cmancone@example.com',
+            'password': 'crappypassword',
+        })
+        raw_jwt = response[0]['token']
+        jwt_claims = jwt.decode(
+            raw_jwt,
+            self.public_keys[self.key_id],
+            algorithms=["RS256"],
+            audience='example.com',
+            issuer="https://example.com",
+        )
+        self.assertEquals(200, response[1])
+        self.assertEquals("cmancone@example.com", jwt_claims['email'])
+        self.assertEquals(['create', 'login'], [audit.action for audit in self.user.audit])
+
+    def test_failure_non_user(self):
+        response = self.login(body={
+            'email': 'cman@example.com',
+            'password': 'crappypassword',
+        })
+        self.assertEquals(404, response[1])
+        self.assertEquals('client_error', response[0]['status'])
+        self.assertEquals([], response[0]['data'])
+        self.assertEquals(['create'], [audit.action for audit in self.user.audit])
+
+    def test_failure_wrong_password(self):
+        response = self.login(body={
+            'email': 'cmancone@example.com',
+            'password': 'wrongpassword',
+        })
+        self.assertEquals(404, response[1])
+        self.assertEquals('client_error', response[0]['status'])
+        self.assertEquals([], response[0]['data'])
+        self.assertEquals(['create', 'failed_login'], [audit.action for audit in self.user.audit])
+
+    def test_failure_lockout(self):
+        response = self.login(body={
+            'email': 'cmancone@example.com',
+            'password': 'wrongpassword1',
+        })
+        response = self.login(body={
+            'email': 'cmancone@example.com',
+            'password': 'wrongpassword2',
+        })
+        response = self.login(body={
+            'email': 'cmancone@example.com',
+            'password': 'wrongpassword3',
+        })
+        response = self.login(body={
+            'email': 'cmancone@example.com',
+            'password': 'wrongpassword4',
+        })
+        response = self.login(body={
+            'email': 'cmancone@example.com',
+            'password': 'wrongpassword5',
+        })
+        response = self.login(body={
+            'email': 'cmancone@example.com',
+            'password': 'wrongpassword6',
+        })
+        response = self.login(body={
+            'email': 'cmancone@example.com',
+            'password': 'wrongpassword7',
+        })
+        response = self.login(body={
+            'email': 'cmancone@example.com',
+            'password': 'wrongpassword8',
+        })
+        response = self.login(body={
+            'email': 'cmancone@example.com',
+            'password': 'wrongpassword9',
+        })
+        response = self.login(body={
+            'email': 'cmancone@example.com',
+            'password': 'wrongpassword0',
+        })
+        response = self.login(body={
+            'email': 'cmancone@example.com',
+            'password': 'wrongpassword1',
+        })
+        self.assertIn('lockout', response[0]['error'])
+        self.assertEquals(404, response[1])
+        self.assertEquals('client_error', response[0]['status'])
+        self.assertEquals([], response[0]['data'])
+        self.assertEquals([
+            'create', 'failed_login', 'failed_login', 'failed_login', 'failed_login', 'failed_login', 'failed_login',
+            'failed_login', 'failed_login', 'failed_login', 'failed_login', 'account_lockout'
+        ], [audit.action for audit in self.user.audit])
+
+    def test_login_check_true(self):
         login = test(
             {
                 'handler_class': PasswordLogin,
@@ -44,23 +166,52 @@ class PasswordLoginTest(KeyBaseTest):
                     'path_to_private_keys': '/path/to/private',
                     'path_to_public_keys': '/path/to/public',
                     'user_model_class': User,
-                    'issuer': 'example.com',
+                    'issuer': 'https://example.com',
                     'audience': 'example.com',
+                    'login_check_callables': [self.always],
                 },
             },
             bindings={'secrets': self.secrets},
             binding_classes=[User, AuditRecord],
         )
-        now = login.build('datetime').datetime.now(datetime.timezone.utc)
 
         users = login.build("users")
         user = users.create({
             'email': 'cmancone@example.com',
             'password': 'crappypassword',
         })
-
         response = login(body={
             'email': 'cmancone@example.com',
             'password': 'crappypassword',
         })
-        self.assertEquals(response['expires_at'])
+        self.assertEquals(200, response[1])
+
+    def test_login_check_false(self):
+        login = test(
+            {
+                'handler_class': PasswordLogin,
+                'handler_config': {
+                    'claims_column_names': ['email'],
+                    'path_to_private_keys': '/path/to/private',
+                    'path_to_public_keys': '/path/to/public',
+                    'user_model_class': User,
+                    'issuer': 'https://example.com',
+                    'audience': 'example.com',
+                    'login_check_callables': [self.never],
+                },
+            },
+            bindings={'secrets': self.secrets},
+            binding_classes=[User, AuditRecord],
+        )
+
+        users = login.build("users")
+        user = users.create({
+            'email': 'cmancone@example.com',
+            'password': 'crappypassword',
+        })
+        response = login(body={
+            'email': 'cmancone@example.com',
+            'password': 'crappypassword',
+        })
+        self.assertEquals(404, response[1])
+        self.assertEquals('not gonna happen', response[0]['error'])

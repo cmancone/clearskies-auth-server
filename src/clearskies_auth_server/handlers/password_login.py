@@ -24,6 +24,7 @@ class PasswordLogin(KeyBase):
         'audit_column_name': None,
         'audit_action_name_successful_login': 'login',
         'audit_action_name_failed_login': 'failed_login',
+        'audit_action_name_account_locked': 'account_lockout',
         'account_lockout': True,
         'account_lockout_failed_attempts_threshold': 10,
         'account_lockout_failed_attempts_period_minutes': 5,
@@ -180,13 +181,15 @@ class PasswordLogin(KeyBase):
 
         # account lockout
         if self.account_locked(user):
-            self.audit(user, self.configuration('audit_action_name_failed_login'), data={
-                "reason": "Account Locked",
-            })
-            minutes = self.configuration.get('account_lockout_minutes')
+            self.audit(
+                user, self.configuration('audit_action_name_account_locked'), data={
+                    "reason": "Account Locked",
+                }
+            )
+            minutes = self.configuration('account_lockout_failed_attempts_threshold')
             return self.error(
-                self, input_output,
-                f"Your account us under a {minutes} minute lockout due to too many failed login attempts", 404
+                input_output, f"Your account us under a {minutes} minute lockout due to too many failed login attempts",
+                404
             )
 
         # invalid password
@@ -196,7 +199,7 @@ class PasswordLogin(KeyBase):
                     "reason": "Invalid password",
                 }
             )
-            return self.error(self, input_output, "Invalid username/password combination", 404)
+            return self.error(input_output, "Invalid username/password combination", 404)
 
         # developer-defined checks
         login_check_callables = self.configuration('login_check_callables')
@@ -214,7 +217,7 @@ class PasswordLogin(KeyBase):
                     self.audit(user, self.configuration('audit_action_name_failed_login'), data={
                         "reason": response,
                     })
-                    return self.error(self, input_output, response, 400)
+                    return self.error(input_output, response, 404)
 
         self.audit(user, self.configuration('audit_action_name_successful_login'))
         signing_key = self.get_youngest_private_key(self.configuration('path_to_private_keys'), as_json=False)
@@ -237,8 +240,8 @@ class PasswordLogin(KeyBase):
         audit_column_name = self.configuration('audit_column_name')
         failed_attempts = user.get(audit_column_name
                                    ).where("action=" + self.configuration('audit_action_name_failed_login'))
-        failed_attempts = failed_attempts.where("created_at>" + threshold_time.isoformat())
-        return len(failed_attempts) > self.configuration('account_lockout_failed_attempts_threshold')
+        failed_attempts = failed_attempts.where("created_at>" + threshold_time.strftime("%Y-%m-%d %H:%M:%S"))
+        return len(failed_attempts) >= self.configuration('account_lockout_failed_attempts_threshold')
 
     def request_data(self, input_output, required=True):
         # make sure we don't drop any data along the way, because the input validation
