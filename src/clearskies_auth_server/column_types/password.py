@@ -38,16 +38,19 @@ class Password(String):
                 "you can only provide one of 'crypt_context', 'crypt_context_string', and 'crypt_context_path', " +
                 "but more than one was found"
             )
-        repeat_password_column_name = configuration.get("repeat_password_column_name")
+        repeat_password_column_name = configuration.get("repeat_password_column_name", "repeat_password")
         if not isinstance(repeat_password_column_name, str):
             raise ValueError(
                 f"Error for column '{self.name}' in model '{self.model_class.__name__}': " +
                 "repeat_password_column_name should be a string, but instead I received a " +
-                type(repeat_password_column_name)
+                str(type(repeat_password_column_name))
             )
 
     def _finalize_configuration(self, configuration):
-        configuration = super()._finalize_configuration(configuration)
+        configuration = super()._finalize_configuration({
+            "repeat_password_column_name": "repeat_password",
+            **configuration
+        })
         found = False
         for config_name in self.crypt_config_names:
             if config_name in configuration:
@@ -73,6 +76,8 @@ class Password(String):
         if self.name not in data or not data[self.name]:
             return ""
         # if we're providing a password, then it must match the value in 'repeat_password'
+        if self.config("for_login"):
+            return ""
         repeat_password = data.get("repeat_password")
         password = data.get("password")
         return "Passwords did not match" if password != repeat_password else ""

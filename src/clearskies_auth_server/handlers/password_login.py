@@ -68,29 +68,36 @@ class PasswordLogin(KeyBase):
                 user_model_class.__name__ + "'"
             )
         user_model = self._di.build(user_model_class)
-        self._columns = user_model.columns()
+        temporary_columns = user_model.columns()
         username_column_name = configuration.get('username_column_name', 'email')
         password_column_name = configuration.get('password_column_name', 'password')
-        if username_column_name not in self._columns:
+        if username_column_name not in temporary_columns:
             raise ValueError(
                 f"{error_prefix} the provided username column, '{username_column_name}', does not exist in the user model '{user_model_class.__name__}'"
             )
-        if not self._columns[username_column_name].is_required:
+        if not temporary_columns[username_column_name].is_required:
             raise ValueError(
                 f"{error_prefix} the provided username column, '{username_column_name}', in model '{user_model_class.__name__}' must be a required column."
             )
-        if password_column_name not in self._columns:
+        if password_column_name not in temporary_columns:
             raise ValueError(
                 f"{error_prefix} the provided password column, '{password_column_name}', does not exist in the user model '{user_model_class.__name__}'"
             )
-        if not self._columns[password_column_name].is_required:
+        if not temporary_columns[password_column_name].is_required:
             raise ValueError(
                 f"{error_prefix} the provided password column, '{password_column_name}', in model '{user_model_class.__name__}' must be a required column."
             )
-        if not hasattr(self._columns[password_column_name], 'validate_password'):
+        if not hasattr(temporary_columns[password_column_name], 'validate_password'):
             raise ValueError(
                 f"{error_prefix} the provided password column, '{password_column_name}', in model '{user_model_class.__name__}' does not implement the required 'validate_password' method.  You should double check to make sure it is using the 'clearskies_auth_server.columns.password column' type."
             )
+
+        # we're getting columns twice, which is inefficient.  The reason why is because, for the columns object we actually use,
+        # we need to set an override on the password column and set `for_login` to True.  I don't want to do this when I initially
+        # fetch the columns above because, if the user passed in the wrong name for the password column, this would result in weird
+        # and confusing errors.  Therefore, we get the columns above without any overrides, do the first round of user input validation, and then
+        # we re-fetch the columns and set our overrides.
+        self._columns = user_model.columns(overrides={password_column_name: {"for_login": True}})
 
         if configuration.get('claims_callable') and configuration.get('claims_column_names'):
             raise ValueError(
@@ -191,6 +198,15 @@ class PasswordLogin(KeyBase):
                 input_output, f"Your account us under a {minutes} minute lockout due to too many failed login attempts",
                 404
             )
+
+        # password not set
+        if not user.get(password_column_name):
+            self.audit(
+                user, self.configuration('audit_action_name_failed_login'), data={
+                    "reason": "Password not set - user is not configured for password login",
+                }
+            )
+            return self.error(input_output, "Invalid username/password combination", 404)
 
         # invalid password
         if not password_column.validate_password(user, request_data[password_column_name]):
