@@ -3,6 +3,8 @@ from unittest.mock import MagicMock
 from .password import Password
 import datetime
 from passlib.context import CryptContext
+
+
 class PasswordTest(unittest.TestCase):
     def setUp(self):
         self.default_crypt_context = CryptContext(
@@ -36,12 +38,14 @@ class PasswordTest(unittest.TestCase):
     def test_validate_and_upgrade(self):
         password = Password("di")
         password.configure(
-            "password", {
+            "password",
+            {
                 "crypt_context": {
                     "schemes": ["argon2", "sha256_crypt"],
                     "deprecated": ["sha256_crypt"],
                 },
-            }, self.user
+            },
+            self.user,
         )
         sha256 = CryptContext(schemes=["sha256_crypt"])
         hashed = sha256.hash("notastrongpassword")

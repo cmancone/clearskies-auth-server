@@ -1,6 +1,8 @@
 from collections import OrderedDict
 from clearskies.input_requirements import Requirement, required
 from clearskies.column_types import string
+
+
 class PasswordValidation(Requirement):
     def check(self, model, data):
         has_value = False

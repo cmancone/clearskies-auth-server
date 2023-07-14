@@ -1,6 +1,8 @@
 import unittest
 from unittest.mock import MagicMock
 from .letters_digits import LettersDigits
+
+
 class LettersDigitsTest(unittest.TestCase):
     def setUp(self):
         self.letters_and_digits = LettersDigits()

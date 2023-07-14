@@ -1,6 +1,8 @@
 from jwcrypto import jwk
 import json
 from clearskies.handlers.base import Base as HandlerBase
+
+
 class KeyBase(HandlerBase):
     _secrets = None
     _datetime = None
@@ -8,12 +10,12 @@ class KeyBase(HandlerBase):
     _cache_time = None
 
     _configuration_defaults = {
-        'path_to_public_keys': '',
-        'path_to_private_keys': '',
-        'algorithm': 'RSA256',
-        'key_type': 'RSA',
-        'key_size': 2048,
-        'key_cache_duration': 7200,
+        "path_to_public_keys": "",
+        "path_to_private_keys": "",
+        "algorithm": "RSA256",
+        "key_type": "RSA",
+        "key_size": 2048,
+        "key_cache_duration": 7200,
     }
 
     def __init__(self, di, secrets, datetime):
@@ -24,24 +26,24 @@ class KeyBase(HandlerBase):
 
     def _check_configuration(self, configuration):
         super()._check_configuration(configuration)
-        error_prefix = 'Configuration error for %s:' % (self.__class__.__name__)
-        for config_name in ['path_to_private_keys', 'path_to_public_keys']:
+        error_prefix = "Configuration error for %s:" % (self.__class__.__name__)
+        for config_name in ["path_to_private_keys", "path_to_public_keys"]:
             if not configuration.get(config_name):
                 raise ValueError(f"{error_prefix} the configuration value '{config_name}' is required but missing.")
-        algorithm = configuration.get('algorithm')
-        if algorithm and algorithm != 'RSA256':
-            raise ValueError('Currently only RSA256 is supported for the algorithm.')
-        key_type = configuration.get('key_type')
-        if key_type and key_type != 'RSA':
-            raise ValueError('Currently only RSA keys are supported.')
+        algorithm = configuration.get("algorithm")
+        if algorithm and algorithm != "RSA256":
+            raise ValueError("Currently only RSA256 is supported for the algorithm.")
+        key_type = configuration.get("key_type")
+        if key_type and key_type != "RSA":
+            raise ValueError("Currently only RSA keys are supported.")
 
     def fetch_and_check_keys(self, path, use_cache=True):
         if use_cache and path in self._key_cache:
             cache_valid_time = self._datetime.datetime.now() - self._datetime.timedelta(
-                seconds=self.configuration('cache_valid_time')
+                seconds=self.configuration("cache_valid_time")
             )
-            if self._key_cache[path]['cache_time'] > cache_valid_time:
-                return self._key_cache[path]['key_data']
+            if self._key_cache[path]["cache_time"] > cache_valid_time:
+                return self._key_cache[path]["key_data"]
 
         raw_data = self._secrets.get(path, silent_if_not_found=True)
         if not raw_data:
@@ -61,19 +63,19 @@ class KeyBase(HandlerBase):
             )
 
         if use_cache:
-            self._key_cache[path] = {'cache_time': self._datetime.datetime.now(), 'key_data': key_data}
+            self._key_cache[path] = {"cache_time": self._datetime.datetime.now(), "key_data": key_data}
 
         # that's as far as we're going to get for now.
         return key_data
 
     def get_oldest_private_key(self, path, use_cache=True, as_json=True):
         keys = self.fetch_and_check_keys(path, use_cache=use_cache)
-        oldest_key_id = min(keys, key=lambda key_id: keys[key_id]['issue_date'])
+        oldest_key_id = min(keys, key=lambda key_id: keys[key_id]["issue_date"])
         return keys[oldest_key_id] if as_json else jwk.JWK(**keys[oldest_key_id])
 
     def get_youngest_private_key(self, path, use_cache=True, as_json=True):
         keys = self.fetch_and_check_keys(path, use_cache=use_cache)
-        youngest_key_id = max(keys, key=lambda key_id: keys[key_id]['issue_date'])
+        youngest_key_id = max(keys, key=lambda key_id: keys[key_id]["issue_date"])
         return keys[youngest_key_id] if as_json else jwk.JWK(**keys[youngest_key_id])
 
     def check_for_inconsistencies(self, private_keys, public_keys):
@@ -95,15 +97,15 @@ class KeyBase(HandlerBase):
         extra_public_keys = public_key_ids - private_key_ids
         if extra_private_keys:
             raise ValueError(
-                "There are some private keys that don't have corresponding public keys.  Those are: '" +
-                "', '".join(extra_private_keys) +
-                "'.  You'll have to manually restore the missing key or delete the extra key."
+                "There are some private keys that don't have corresponding public keys.  Those are: '"
+                + "', '".join(extra_private_keys)
+                + "'.  You'll have to manually restore the missing key or delete the extra key."
             )
         if extra_public_keys:
             raise ValueError(
-                "There are some public keys that don't have corresponding private keys.  Those are: '" +
-                "', '".join(extra_public_keys) +
-                "'.  You'll have to manually restore the missing key or delete the extra key."
+                "There are some public keys that don't have corresponding private keys.  Those are: '"
+                + "', '".join(extra_public_keys)
+                + "'.  You'll have to manually restore the missing key or delete the extra key."
             )
 
     def save_keys(self, path, keys):

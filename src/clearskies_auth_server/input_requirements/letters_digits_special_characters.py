@@ -1,9 +1,11 @@
 import re
 from .letters_digits import LettersDigits
+
+
 class LettersDigitsSpecialCharacters(LettersDigits):
     special_characters = None
 
-    def configure(self, special_characters='!@#$%^&*()<>,.?~`'):
+    def configure(self, special_characters="!@#$%^&*()<>,.?~`"):
         if type(special_characters) != str:
             raise ValueError(f"special_characters must be a string with the list of special characters to check for.")
         self.special_characters = special_characters
@@ -23,7 +25,8 @@ class LettersDigitsSpecialCharacters(LettersDigits):
             break
 
         if not found:
-            return f"{self.column_name} must contain at least one special character from the following list: " + ", ".join(
-                list(self.special_characters)
+            return (
+                f"{self.column_name} must contain at least one special character from the following list: "
+                + ", ".join(list(self.special_characters))
             )
-        return ''
+        return ""

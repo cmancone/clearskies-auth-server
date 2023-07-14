@@ -1,6 +1,8 @@
 from clearskies.column_types import string, String
 from clearskies.input_requirements import required
 from passlib.context import CryptContext
+
+
 class Password(String):
     _crypt_context = None
 
@@ -34,23 +36,22 @@ class Password(String):
                 count += 1
         if count > 1:
             raise ValueError(
-                f"Error for column '{self.name}' in model '{self.model_class.__name__}': " +
-                "you can only provide one of 'crypt_context', 'crypt_context_string', and 'crypt_context_path', " +
-                "but more than one was found"
+                f"Error for column '{self.name}' in model '{self.model_class.__name__}': "
+                + "you can only provide one of 'crypt_context', 'crypt_context_string', and 'crypt_context_path', "
+                + "but more than one was found"
             )
         repeat_password_column_name = configuration.get("repeat_password_column_name", "repeat_password")
         if not isinstance(repeat_password_column_name, str):
             raise ValueError(
-                f"Error for column '{self.name}' in model '{self.model_class.__name__}': " +
-                "repeat_password_column_name should be a string, but instead I received a " +
-                str(type(repeat_password_column_name))
+                f"Error for column '{self.name}' in model '{self.model_class.__name__}': "
+                + "repeat_password_column_name should be a string, but instead I received a "
+                + str(type(repeat_password_column_name))
             )
 
     def _finalize_configuration(self, configuration):
-        configuration = super()._finalize_configuration({
-            "repeat_password_column_name": "repeat_password",
-            **configuration
-        })
+        configuration = super()._finalize_configuration(
+            {"repeat_password_column_name": "repeat_password", **configuration}
+        )
         found = False
         for config_name in self.crypt_config_names:
             if config_name in configuration:

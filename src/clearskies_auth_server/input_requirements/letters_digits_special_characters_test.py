@@ -1,11 +1,13 @@
 import unittest
 from unittest.mock import MagicMock
 from .letters_digits_special_characters import LettersDigitsSpecialCharacters
+
+
 class LettersDigitsSpecialCharactersTest(unittest.TestCase):
     def setUp(self):
         self.letters_digits_special_characters = LettersDigitsSpecialCharacters()
         self.letters_digits_special_characters.column_name = "password"
-        self.letters_digits_special_characters.configure(special_characters=':!')
+        self.letters_digits_special_characters.configure(special_characters=":!")
 
     def test_check(self):
         error = self.letters_digits_special_characters.check("model", {"password": "asdf1234!"})
