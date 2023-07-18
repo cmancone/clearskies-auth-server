@@ -76,6 +76,24 @@ class MultiTenantConfiguration(Column):
         # gather our data, find the config model class, and save.
         # also, remove the column data before returning so the other columns
         # won't trigger their post-saves
+        config_model_data = {}
+        for column_name in self.config('writeable_column_names'):
+            if column_name not in data:
+                continue
+            config_model_data[column_name] = data[column_name]
+            del data[column_name]
+
+        if config_model_data:
+            # model.get() returns None if the model doesn't exist, so we have to split up create and update
+            # we kinda have to anyway, because with create we need to also provide the user id and tenant id.
+            config_model = model.get(self.name) if model.exists else self.config_models.blank()
+            if not config_model.exists:
+                config_model_data = {
+                    **config_model_data,
+                    **self._get_record_selector_data(),
+                }
+            config_model.save(config_model_data)
+
         return data
 
     def additional_write_columns(self, is_create=False):
@@ -100,19 +118,53 @@ class MultiTenantConfiguration(Column):
 
     def provide(self, data, column_name):
         if column_name == self.name:
-            authorization_data = self.di.build('input_output', cache=True)
-            user_id_column_name = self.config("config_model_class_user_id_column_name")
-            tenant_id_column_name = self.config("config_model_class_tenant_id_column_name")
-            user_id = authorization_data.get(self.config("authorization_data_user_id_column_name"))
-            tenant_id = authorization_data.get(self.config("authorization_data_tenant_id_column_name"))
-            if not user_id:
-                raise ValueError("I was asked to fetch the multi tenant config for a given user, but I didn't find any data in the authorization data under " + self.config("authorization_data_user_id_column_name"))
-            if not tenant_id:
-                raise ValueError("I was asked to fetch the multi tenant config for a given user, but I didn't find any data in the authorization data under " + self.config("authorization_data_tenant_id_column_name"))
-            return self.config_models.where(f"{user_id_column_name}={user_id}").where(f"{tenant_id_column_name}={tenant_id}").first()
+            models = self.config_models
+            for (column_name, value) in self._get_record_selector_data():
+                models = models.where(f"{column_name}={value}")
+            return models.first()
 
         return self.provide(data, column_name).get(column_name)
 
     def to_json(self, model):
-        # grab everything out of the readable columns and add it in
-        return {self.name: model.get(self.name, silent=True)}
+        json_data = {}
+        config_model = model.get(self.name)
+        for column_name in self.readable_column_names:
+            json_data = {
+                **json_data,
+                **self.config_model_columns[column_name].to_json(config_model),
+            }
+        return json_data
+
+    def _get_record_selector_data(self):
+        authorization_data = self.di.build('input_output', cache=True)
+        user_id_column_name = self.config("config_model_class_user_id_column_name")
+        tenant_id_column_name = self.config("config_model_class_tenant_id_column_name")
+        user_id = authorization_data.get(self.config("authorization_data_user_id_column_name"))
+        tenant_id = authorization_data.get(self.config("authorization_data_tenant_id_column_name"))
+        if not user_id:
+            raise ValueError("I was asked to fetch the multi tenant config for a given user, but I didn't find any data in the authorization data under " + self.config("authorization_data_user_id_column_name"))
+        if not tenant_id:
+            raise ValueError("I was asked to fetch the multi tenant config for a given user, but I didn't find any data in the authorization data under " + self.config("authorization_data_tenant_id_column_name"))
+        return {
+            user_id_column_name: user_id,
+            authorization_data_tenant_id_column_name: tenant_id,
+        }
+
+    ###########
+    ##########
+    def input_errors(self, model, data):
+        error = self.check_input(model, data)
+        if error:
+            return {self.name: error}
+
+        for requirement in self.config("input_requirements"):
+            error = requirement.check(model, data)
+            if error:
+                return {self.name: error}
+
+        return {}
+
+    def check_input(self, model, data):
+        if self.name not in data or not data[self.name]:
+            return ""
+        return self.input_error_for_value(data[self.name])
