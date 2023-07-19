@@ -1,8 +1,8 @@
-from clearskies.column_types import Column
+from clearskies import column_types
 from clearskies.functional import validations
 
 
-class MultiTenantConfiguration(Column):
+class MultiTenantConfiguration(column_types.Column):
     my_configs = [
         "config_model_class",
         "config_model_class_user_id_column_name",
@@ -37,6 +37,8 @@ class MultiTenantConfiguration(Column):
         self._check_column_names(self.configuration, 'writeable_column_names', self.columns, self.config_model_columns, writeable=True)
         self._check_column_names(self.configuration, 'readable_column_names', self.columns, self.config_model_columns, writeable=False)
         self._check_config_model_column_name(configuration, 'config_model_class_user_id_column_name', config_model_class, self.config_model_columns)
+        if configuration.get("input_requirements"):
+            raise ValueError(f"{error_prefix} input requirements are not allowed for the 'multi_tenant_configuration' column class")
 
     def _check_column_names(configuration, key, model_columns, config_columns, writeable=False):
         config_model_class_name = configuration.get("config_model_class").__name__
@@ -99,18 +101,30 @@ class MultiTenantConfiguration(Column):
     def additional_write_columns(self, is_create=False):
         extra_columns = super().additional_write_columns(is_create=is_create)
 
-        # we need to clone the column and set the `is_temporary` flag to true.  This will ensure that it doesn't try to save data to the database
-        # during the normal save flow (which will fail, since we're effectively moving the column to a different model class, which obviously won't
-        # have the same columns in th backend.  In our post save, we'll re-direct the data to save it in the right place.
+        # we need to have a "placeholder" for all of our writeable columns in the "root" list of columns.
+        # This way, they will appear as "normal" columns in the schema, and the input checking won't complain
+        # about columns that don't exist.  We'll want to make them completely new using the same "base" class.
+        # this will make autodocs mostly work out.  For instance, BelongsTo will get mapped to String.
+        base_classes = [
+            column_types.Boolean,
+            column_types.DateTime,
+            column_types.Float,
+            column_types.Integer,
+            column_types.JSON,
+            column_types.String,
+        ]
         for column_name in self.config('writeable_column_names'):
             column_to_clone = self.config_model_columns[column_name]
-            new_column = self.di.build(column_to_clone.__class__)
-            new_column.configure({
-                **column_to_clone.configuration,
-                "is_temporary": True,
-            })
+            # again, it's not obvious but this is doing something important.  Derived classes get
+            # re-built using a few of our key base column classes.
+            for base_class in base_classes:
+                if isinstance(column_to_clone, base_class):
+                    new_class = base_class
+            if not new_class:
+                raise ValueError("Apparently I just wasn't designed to handle classes of column type " + column_to_clone.__class__.__name__)
+            new_column = self.di.build(new_class)
+            new_column.configure()
             extra_columns.update(column_name, new_column)
-
         return extra_columns
 
     def can_provide(self, column_name):
@@ -150,21 +164,33 @@ class MultiTenantConfiguration(Column):
             authorization_data_tenant_id_column_name: tenant_id,
         }
 
-    ###########
-    ##########
+    def to_backend(self, data):
+        data = {**data}
+        for column_name in self.config('writeable_column_names'):
+            if column_name in data:
+                del data[column_name]
+        return data
+
     def input_errors(self, model, data):
-        error = self.check_input(model, data)
-        if error:
-            return {self.name: error}
+        config_model_data = {}
+        for column_name in self.config('writeable_column_names'):
+            if column_name in data:
+                config_model_data[column_name] = data[column_name]
 
-        for requirement in self.config("input_requirements"):
-            error = requirement.check(model, data)
-            if error:
-                return {self.name: error}
+        # yeah, two for loops over the same thing, but we want
+        # to collect all the data before calling check_input, because
+        # normally clearskies passes around all the save data during input
+        # validation.  There can be some edge cases where things might
+        # break if we only send along data for a single column.
+        errors = {}
+        for column_name in self.config('writeable_column_names'):
+            errors = {
+                **errors,
+                **self.config_model_columns[column_name].input_errors(model, data),
+            }
 
-        return {}
-
-    def check_input(self, model, data):
-        if self.name not in data or not data[self.name]:
-            return ""
-        return self.input_error_for_value(data[self.name])
+        # I've skipped the part where I check input requirements for *this* column.
+        # In general, that just doesn't make any sense, and so we throw an exception
+        # in the configuration check stage if the developer tries to set input requirements
+        # for this column
+        return errors
