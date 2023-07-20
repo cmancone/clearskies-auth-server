@@ -189,7 +189,7 @@ class MultiTenantConfiguration(column_types.Column):
         return json_data
 
     def _get_record_selector_data(self):
-        authorization_data = self.di.build("input_output", cache=True)
+        authorization_data = self.di.build("input_output", cache=True).get_authorization_data()
         user_id_column_name = self.config("config_model_class_user_id_column_name")
         tenant_id_column_name = self.config("config_model_class_tenant_id_column_name")
         user_id = authorization_data.get(self.config("authorization_data_user_id_column_name"))
