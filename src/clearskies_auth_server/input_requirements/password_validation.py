@@ -4,6 +4,9 @@ from clearskies.column_types import string
 
 
 class PasswordValidation(Requirement):
+    def __init__(self, di):
+        self.di = di
+
     def check(self, model, data):
         has_value = False
         has_some_value = False
@@ -24,4 +27,6 @@ class PasswordValidation(Requirement):
         if is_create:
             return {}
 
-        return OrderedDict([string("validate_password", is_temporary=True)])
+        column = self.di.build(String, cache=False)
+        column.configure("validate_password", {"is_temporary": True}, self.__class__)
+        return column

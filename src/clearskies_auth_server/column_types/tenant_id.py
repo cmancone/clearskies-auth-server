@@ -1,10 +1,18 @@
-from clearskies.column_types import string, String
+from clearskies.column_types import BelongsTo
 
 
-class TenantId(String):
-    my_configs = [
+class TenantId(BelongsTo):
+
+    required_configs = [
+        "parent_models_class",
         "source",
         "source_key_name",
+    ]
+
+    my_configs = [
+        "model_column_name",
+        "readable_parent_columns",
+        "join_type",
     ]
 
     def __init__(self, di):
@@ -17,9 +25,6 @@ class TenantId(String):
     def _check_configuration(self, configuration):
         super()._check_configuration(configuration)
         error_prefix = f"Error for column '{self.name}' in model '{self.model_class.__name__}':"
-        for config_name in ["source", "source_key_name"]:
-            if not configuration.get(config_name):
-                raise ValueError(f"{error_prefix} you must provide '{config_name}' when using the tenant_id column type")
         if configuration.get("source") not in ["authorization_data", "routing_data"]:
             raise ValueError(f"{error_prefix} 'source' must be either 'authorization_data' or 'routing_data', but was something else.")
 

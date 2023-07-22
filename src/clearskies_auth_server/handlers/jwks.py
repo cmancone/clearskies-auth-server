@@ -19,4 +19,4 @@ class Jwks(KeyBase):
             }
             for key in public_keys.values()
         ]
-        return self.success(input_output, keys)
+        return input_output.respond(keys, 200)

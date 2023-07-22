@@ -101,6 +101,8 @@ class PasswordLogin(KeyBase):
         # fetch the columns above because, if the user passed in the wrong name for the password column, this would result in weird
         # and confusing errors.  Therefore, we get the columns above without any overrides, do the first round of user input validation, and then
         # we re-fetch the columns and set our overrides.
+        # Finally, one more bit of trickiness: username columns are often marked as unique but we need to disable that input
+        # rule during a login.
         self._columns = user_model.columns(overrides={password_column_name: {"for_login": True}})
 
         if configuration.get("claims_callable") and configuration.get("claims_column_names"):

@@ -1,4 +1,4 @@
-from clearskies.column_types import string, String
+from clearskies.column_types import String
 from clearskies.input_requirements import required
 from passlib.context import CryptContext
 
@@ -50,7 +50,12 @@ class Password(String):
 
     def _finalize_configuration(self, configuration):
         configuration = super()._finalize_configuration(
-            {"repeat_password_column_name": "repeat_password", **configuration}
+            {
+                "require_repeat_password": True,
+                "repeat_password_column_name": "repeat_password",
+                "for_login": False,
+                **configuration,
+            }
         )
         found = False
         for config_name in self.crypt_config_names:
@@ -89,6 +94,8 @@ class Password(String):
             del data[self.name]
         elif data.get(self.name):
             data[self.name] = self._crypt_context.hash(data[self.name])
+        if self.config("require_repeat_password") and not self.config("for_login") and "repeat_password" in data:
+            del data["repeat_password"]
         return data
 
     def validate_password(self, user, password):
@@ -113,5 +120,7 @@ class Password(String):
 
         extra_columns = super().additional_write_columns(is_create=is_create)
         if self.config("require_repeat_password"):
-            extra_columns.update([string("repeat_password", is_temporary=True)])
+            repeat_password_column = self.di.build(String, cache=False)
+            repeat_password_column.configure("repeat_password", {"is_temporary": True}, self.model_class)
+            extra_columns["repeat_password"] = repeat_password_column
         return extra_columns
