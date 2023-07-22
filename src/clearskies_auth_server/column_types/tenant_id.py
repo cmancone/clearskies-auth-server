@@ -2,7 +2,6 @@ from clearskies.column_types import BelongsTo
 
 
 class TenantId(BelongsTo):
-
     required_configs = [
         "parent_models_class",
         "source",
@@ -26,7 +25,9 @@ class TenantId(BelongsTo):
         super()._check_configuration(configuration)
         error_prefix = f"Error for column '{self.name}' in model '{self.model_class.__name__}':"
         if configuration.get("source") not in ["authorization_data", "routing_data"]:
-            raise ValueError(f"{error_prefix} 'source' must be either 'authorization_data' or 'routing_data', but was something else.")
+            raise ValueError(
+                f"{error_prefix} 'source' must be either 'authorization_data' or 'routing_data', but was something else."
+            )
 
     def _get_tenant_id(self):
         input_output = self.di.build("input_output", cache=True)
