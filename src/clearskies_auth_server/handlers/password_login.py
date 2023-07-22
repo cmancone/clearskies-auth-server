@@ -12,6 +12,9 @@ class PasswordLogin(KeyBase):
         "user_model_class": "",
         "username_column_name": "email",
         "password_column_name": "password",
+        "tenant_id_column_name": None,
+        "tenant_id_source": None,
+        "tenant_id_source_key_name": None,
         "jwt_lifetime_seconds": 86400,
         "issuer": "",
         "audience": "",
@@ -101,8 +104,6 @@ class PasswordLogin(KeyBase):
         # fetch the columns above because, if the user passed in the wrong name for the password column, this would result in weird
         # and confusing errors.  Therefore, we get the columns above without any overrides, do the first round of user input validation, and then
         # we re-fetch the columns and set our overrides.
-        # Finally, one more bit of trickiness: username columns are often marked as unique but we need to disable that input
-        # rule during a login.
         self._columns = user_model.columns(overrides={password_column_name: {"for_login": True}})
 
         if configuration.get("claims_callable") and configuration.get("claims_column_names"):
@@ -161,6 +162,22 @@ class PasswordLogin(KeyBase):
                         f"{error_prefix} each entry in 'login_check_callables' should be a callable, but entry #{index} is not callable."
                     )
 
+        if configuration.get("tenant_id_column_name"):
+            tenant_id_column_name = configuration.get("tenant_id_column_name")
+            if tenant_id_column_name not in self._columns:
+                raise ValueError(
+                    f"{error_prefix} 'tenant_id_column_name' is '{tenant_id_column_name}' but this column does not exist in the user model class, '{user_model_class.__name__}'"
+                )
+            for config_name in ["tenant_id_source", "tenant_id_source_key_name"]:
+                if not configuration.get(config_name):
+                    raise ValueError(
+                        f"{error_prefix} 'tenant_id_column_name' is specified, which enables multi-tenant login. However, this also requires you to define '{config_name}', which is not defined."
+                    )
+            if configuration.get("tenant_id_source") not in ["routing_data"]:
+                raise ValueError(
+                    f"{error_prefix} 'tenant_id_source must be set to 'routing_data', but is something else."
+                )
+
     def _get_audit_column(self, columns):
         audit_column = None
         for column in columns.values():
@@ -187,7 +204,17 @@ class PasswordLogin(KeyBase):
         username_column_name = self.configuration("username_column_name")
         password_column_name = self.configuration("password_column_name")
         password_column = self._columns[password_column_name]
-        user = self.users.find(f"{username_column_name}=" + request_data[username_column_name])
+        tenant_id_value = None
+        users = self.users
+        if self.configuration("tenant_id_column_name"):
+            tenant_id_column_name = self.configuration("tenant_id_column_name")
+            tenant_id_source_key_name = self.configuration("tenant_id_source_key_name")
+            if self.configuration("tenant_id_source") == "routing_data":
+                tenant_id_value = input_output.routing_data().get(tenant_id_source_key_name)
+            if not tenant_id_value:
+                return self.error(input_output, "Invalid username/password combination", 404)
+            users = users.where(f"{tenant_id_column_name}={tenant_id_value}")
+        user = users.find(f"{username_column_name}=" + request_data[username_column_name])
 
         # no user found
         if not user.exists:

@@ -40,7 +40,7 @@ class KeyBase(HandlerBase):
     def fetch_and_check_keys(self, path, use_cache=True):
         if use_cache and path in self._key_cache:
             cache_valid_time = self._datetime.datetime.now() - self._datetime.timedelta(
-                seconds=self.configuration("cache_valid_time")
+                seconds=self.configuration("key_cache_duration")
             )
             if self._key_cache[path]["cache_time"] > cache_valid_time:
                 return self._key_cache[path]["key_data"]
