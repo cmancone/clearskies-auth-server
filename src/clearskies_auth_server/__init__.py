@@ -1,7 +1,9 @@
 from . import handlers
 from . import applications
+from . import authentication
 
 __all__ = [
-    "handlers",
     "applications",
+    "authentication",
+    "handlers",
 ]

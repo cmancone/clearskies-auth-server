@@ -7,32 +7,25 @@ from .key_base import KeyBase
 import datetime
 
 
-class PasswordLogin(KeyBase):
+class SwitchTenant(KeyBase):
     _configuration_defaults = {
         "user_model_class": "",
+        "tenant_id_column_name": "",
+        "tenant_id_source": "",
+        "tenant_id_source_key_name": "",
         "username_column_name": "email",
-        "password_column_name": "password",
-        "tenant_id_column_name": None,
-        "tenant_id_source": None,
-        "tenant_id_source_key_name": None,
-        "jwt_lifetime_seconds": 86400,
+        "username_key_name_in_authorization_data": "email",
         "issuer": "",
         "audience": "",
         "path_to_private_keys": "",
         "path_to_public_keys": "",
         "key_cache_duration": 7200,
+        "can_switch_callable": None,
         "claims_callable": None,
         "claims_column_names": None,
-        "input_error_callable": None,
-        "login_check_callables": [],
         "audit": True,
         "audit_column_name": None,
         "audit_action_name_successful_login": "login",
-        "audit_action_name_failed_login": "failed_login",
-        "audit_action_name_account_locked": "account_lockout",
-        "account_lockout": True,
-        "account_lockout_failed_attempts_threshold": 10,
-        "account_lockout_failed_attempts_period_minutes": 5,
         "users": None,
     }
 
@@ -42,6 +35,9 @@ class PasswordLogin(KeyBase):
         "user_model_class",
         "path_to_private_keys",
         "path_to_public_keys",
+        "tenant_id_column_name",
+        "tenant_id_source",
+        "tenant_id_source_key_name",
     ]
 
     def __init__(self, di, secrets, datetime):
@@ -60,6 +56,8 @@ class PasswordLogin(KeyBase):
             raise ValueError(
                 f"{error_prefix} the provided 'input_error_callable' configuration is not actually callable."
             )
+        if "can_switch_callable" in configuration and not callable(configuration.get("can_switch_callable")):
+            raise ValueError(f"{error_prefix} the provided 'can_switch_callable' configuration is not actually callable.")
 
         user_model_class = configuration.get("user_model_class")
         if not inspect.isclass(user_model_class):
@@ -132,11 +130,6 @@ class PasswordLogin(KeyBase):
                         f"{error_prefix} a configured claim column, '{column_name}' is not readable and so cannot be used in the claims"
                     )
 
-        if configuration.get("account_lockout") and not configuration.get("audit"):
-            raise ValueError(
-                f"{error_prefix} 'account_lockout' is set to True but 'audit' is False.  You must enable auditing to turn on account lockouts."
-            )
-
         if configuration.get("audit"):
             audit_column_name = configuration.get("audit_column_name")
             if audit_column_name not in self._columns:
@@ -147,20 +140,6 @@ class PasswordLogin(KeyBase):
                 raise ValueError(
                     f"{error_prefix} 'audit_column_name' is '{audit_column_name}' but this column is not an audit column for the user model class, '{user_model_class.__name__}'"
                 )
-
-        if configuration.get("login_check_callables"):
-            login_check_callables = configuration.get("login_check_callables")
-            if not isinstance(login_check_callables, list):
-                raise ValueError(
-                    f"{error_prefix} 'login_check_callables' should be a list, but instead it has type '"
-                    + type(login_check_callables)
-                    + "'"
-                )
-            for index, login_check_callable in enumerate(login_check_callables):
-                if not callable(login_check_callable):
-                    raise ValueError(
-                        f"{error_prefix} each entry in 'login_check_callables' should be a callable, but entry #{index} is not callable."
-                    )
 
         if configuration.get("tenant_id_column_name"):
             tenant_id_column_name = configuration.get("tenant_id_column_name")
@@ -195,94 +174,50 @@ class PasswordLogin(KeyBase):
     def users(self):
         return self._di.build(self.configuration("user_model_class"), cache=True)
 
+    def get_tenant_id(self, input_output):
+        source = self.configuration("tenant_id_source")
+        if source == "routing_data":
+            routing_data = input_output.routing_data()
+            return routing_data.get(self.configuration("tenant_id_source_key_name"))
+
+    def get_username(self, authorization_data):
+        return authorization_data.get(self.configuration("username_key_name_in_authorization_data"))
+
     def handle(self, input_output):
-        request_data = self.request_data(input_output)
-        input_errors = self._find_input_errors(self.users, request_data, input_output)
-        if input_errors:
-            raise InputError(input_errors)
+        authorization_data = input_output.get_authorization_data()
+        tenant_id = self.get_tenant_id(input_output)
+        if not tenant_id:
+            return self.error(input_output, "Invalid tenant", 404)
+        username = self.get_username(authorization_data)
+        if not username:
+            return self.error(input_output, "Invalid user", 404)
+        can_switch_callable = self.configuration("can_switch_callable")
+        if can_switch_callable:
+            allowed = self._di.call_function(
+                can_switch_callable,
+                tenant_id=tenant_id,
+                username=username,
+                request_data=input_output.request_data(required=False),
+                input_output=input_output,
+                **input_output.routing_data(),
+                **input_output.context_specifics(),
+            )
+            if not allowed:
+                return self.error(input_output, "Invalid user + tenant", 404)
 
         username_column_name = self.configuration("username_column_name")
-        password_column_name = self.configuration("password_column_name")
-        password_column = self._columns[password_column_name]
-        tenant_id_value = None
-        users = self.users
-        if self.configuration("tenant_id_column_name"):
-            tenant_id_column_name = self.configuration("tenant_id_column_name")
-            tenant_id_source_key_name = self.configuration("tenant_id_source_key_name")
-            if self.configuration("tenant_id_source") == "routing_data":
-                tenant_id_value = input_output.routing_data().get(tenant_id_source_key_name)
-            if not tenant_id_value:
-                return self.error(input_output, "Invalid username/password combination", 404)
-            users = users.where(f"{tenant_id_column_name}={tenant_id_value}")
-        user = users.find(f"{username_column_name}=" + request_data[username_column_name])
+        tenant_id_column_name = self.configuration("tenant_id_column_name")
+
+        user = self.users.where(f"{tenant_id_column_name}={tenant_id}").where(f"{username_column_name}={username}").first()
 
         # no user found
         if not user.exists:
-            return self.error(input_output, "Invalid username/password combination", 404)
-
-        # account lockout
-        if self.account_locked(user):
-            self.audit(
-                user,
-                self.configuration("audit_action_name_account_locked"),
-                data={
-                    "reason": "Account Locked",
-                },
-            )
-            minutes = self.configuration("account_lockout_failed_attempts_threshold")
-            return self.error(
-                input_output,
-                f"Your account us under a {minutes} minute lockout due to too many failed login attempts",
-                404,
-            )
-
-        # password not set
-        if not user.get(password_column_name):
-            self.audit(
-                user,
-                self.configuration("audit_action_name_failed_login"),
-                data={
-                    "reason": "Password not set - user is not configured for password login",
-                },
-            )
-            return self.error(input_output, "Invalid username/password combination", 404)
-
-        # invalid password
-        if not password_column.validate_password(user, request_data[password_column_name]):
-            self.audit(
-                user,
-                self.configuration("audit_action_name_failed_login"),
-                data={
-                    "reason": "Invalid password",
-                },
-            )
-            return self.error(input_output, "Invalid username/password combination", 404)
-
-        # developer-defined checks
-        login_check_callables = self.configuration("login_check_callables")
-        if login_check_callables:
-            for login_check_callable in login_check_callables:
-                response = self._di.call_function(
-                    login_check_callable,
-                    user=user,
-                    request_data=request_data,
-                    input_output=input_output,
-                    **input_output.routing_data(),
-                    **input_output.context_specifics(),
-                )
-                if response:
-                    self.audit(
-                        user,
-                        self.configuration("audit_action_name_failed_login"),
-                        data={
-                            "reason": response,
-                        },
-                    )
-                    return self.error(input_output, response, 404)
+            return self.error(input_output, "Invalid user + tenant", 404)
 
         self.audit(user, self.configuration("audit_action_name_successful_login"))
         signing_key = self.get_youngest_private_key(self.configuration("path_to_private_keys"), as_json=False)
-        jwt_claims = self.get_jwt_claims(user)
+        # use the old expiration time, otherwise users can just automatically extend their session life
+        jwt_claims = self.get_jwt_claims(user, authorization_data['exp'])
         token = jwt.JWT(header={"alg": "RS256", "typ": "JWT", "kid": signing_key["kid"]}, claims=jwt_claims)
         token.make_signed_token(signing_key)
 
@@ -294,72 +229,7 @@ class PasswordLogin(KeyBase):
             200,
         )
 
-    def account_locked(self, user):
-        if not self.configuration("account_lockout"):
-            return True
-
-        threshold_time = datetime.datetime.now() - datetime.timedelta(
-            minutes=self.configuration("account_lockout_failed_attempts_period_minutes")
-        )
-        audit_column_name = self.configuration("audit_column_name")
-        failed_attempts = user.get(audit_column_name).where(
-            "action=" + self.configuration("audit_action_name_failed_login")
-        )
-        failed_attempts = failed_attempts.where("created_at>" + threshold_time.strftime("%Y-%m-%d %H:%M:%S"))
-        return len(failed_attempts) >= self.configuration("account_lockout_failed_attempts_threshold")
-
-    def request_data(self, input_output, required=True):
-        # make sure we don't drop any data along the way, because the input validation
-        # needs to return an error for unexpected data.
-        column_map = {
-            self.configuration("username_column_name"): self.auto_case_column_name(
-                self.configuration("username_column_name"), True
-            ),
-            self.configuration("password_column_name"): self.auto_case_column_name(
-                self.configuration("password_column_name"), True
-            ),
-        }
-        mapped_data = {}
-        for key, value in input_output.request_data(required=required).items():
-            mapped_data[column_map.get(key, key)] = value
-        return mapped_data
-
-    def _find_input_errors(self, model, request_data, input_output):
-        input_errors = {}
-        allowed_column_names = [
-            self.configuration("username_column_name"),
-            self.configuration("password_column_name"),
-        ]
-        for extra_column in set(request_data.keys()) - set(allowed_column_names):
-            input_errors[extra_column] = "Input column '{extra_column}' is not an allowed column."
-        for column_name in allowed_column_names:
-            input_errors = {
-                **input_errors,
-                **self._columns[column_name].input_errors(model, request_data),
-            }
-        input_error_callable = self.configuration("input_error_callable")
-        if input_error_callable:
-            more_input_errors = self._di.call_function(
-                input_error_callable,
-                input_data=request_data,
-                request_data=request_data,
-                input_output=input_output,
-                routing_data=input_output.routing_data(),
-                authorization_data=input_output.get_authorization_data(),
-            )
-            if type(more_input_errors) != dict:
-                raise ValueError(
-                    "The input error callable, '"
-                    + str(input_error_callable)
-                    + "', did not return a dictionary as required"
-                )
-            input_errors = {
-                **input_errors,
-                **more_input_errors,
-            }
-        return input_errors
-
-    def get_jwt_claims(self, user):
+    def get_jwt_claims(self, user, exp):
         if self.configuration("claims_callable"):
             claims = self._di.call_function(user=user)
         else:
@@ -371,7 +241,7 @@ class PasswordLogin(KeyBase):
         return {
             "aud": self.configuration("audience"),
             "iss": self.configuration("issuer"),
-            "exp": int((now + datetime.timedelta(seconds=self.configuration("jwt_lifetime_seconds"))).timestamp()),
+            "exp": exp,
             **claims,
             "iat": int(now.timestamp()),
         }
