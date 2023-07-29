@@ -12,8 +12,8 @@ def letters_digits_special_characters(special_characters="!@#$%^&*()<>,.?~`"):
     return BindingConfig(LettersDigitsSpecialCharacters, special_characters=special_characters)
 
 
-def password_validation():
-    return BindingConfig(PasswordValidation)
+def password_validation(password_column_name):
+    return BindingConfig(PasswordValidation, password_column_name=password_column_name)
 
 
 __all__ = [

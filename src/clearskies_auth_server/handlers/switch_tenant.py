@@ -46,7 +46,7 @@ class SwitchTenant(KeyBase):
 
     def _check_configuration(self, configuration):
         super()._check_configuration(configuration)
-        error_prefix = "Invalid configuation for handler " + self.__class__.__name__ + ":"
+        error_prefix = "Invalid configuration for handler " + self.__class__.__name__ + ":"
         for key in self._required_configurations:
             if not configuration.get(key):
                 raise ValueError(f"{error_prefix} missing required configuration '{key}'")
@@ -165,10 +165,10 @@ class SwitchTenant(KeyBase):
             return column
         return None
 
-    def apply_default_configuation(self, configuration):
+    def apply_default_configuration(self, configuration):
         if not configuration.get("audit_column_name") and ("audit" not in configuration or configuration["audit"]):
             configuration["audit_column_name"] = self._get_audit_column(self._columns).name
-        return super().apply_default_configuation(configuration)
+        return super().apply_default_configuration(configuration)
 
     @property
     def users(self):

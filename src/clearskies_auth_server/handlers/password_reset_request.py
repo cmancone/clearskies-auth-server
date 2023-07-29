@@ -13,6 +13,7 @@ class PasswordResetRequest(Base):
         "reset_key_lifetime_seconds": 86400,
         "reset_key_column_name": "reset_key",
         "reset_expiration_column_name": "reset_key_expiration",
+        "where": None,
         "input_error_callable": None,
         "audit": True,
         "audit_column_name": None,
@@ -31,7 +32,7 @@ class PasswordResetRequest(Base):
 
     def _check_configuration(self, configuration):
         super()._check_configuration(configuration)
-        error_prefix = "Invalid configuation for handler " + self.__class__.__name__ + ":"
+        error_prefix = "Invalid configuration for handler " + self.__class__.__name__ + ":"
         for key in self._required_configurations:
             if not configuration.get(key):
                 raise ValueError(f"{error_prefix} missing required configuration '{key}'")
@@ -64,7 +65,7 @@ class PasswordResetRequest(Base):
             if column_name not in self._columns:
                 if is_default:
                     raise ValueError(
-                        f"{error_prefix} the configuration setting, '{config_name}' is not set and the deafult column name, '{column_name}', does not exist in the user model '{user_model_class.__name__}'"
+                        f"{error_prefix} the configuration setting, '{config_name}' is not set and the default column name, '{column_name}', does not exist in the user model '{user_model_class.__name__}'"
                     )
                 else:
                     raise ValueError(
@@ -85,6 +86,13 @@ class PasswordResetRequest(Base):
                     f"{error_prefix} 'audit_column_name' is '{audit_column_name}' but this column is not an audit column for the user model class, '{user_model_class.__name__}'"
                 )
 
+        for callable_name in ["where", "input_error_callable"]:
+            config = configuration.get(callable_name)
+            if config and not callable(config):
+                raise ValueError(
+                    f"{error_prefix} '{callable_name}' must be a callable but it is a " + type(config)
+                )
+
     def _get_audit_column(self, columns):
         audit_column = None
         for column in columns.values():
@@ -93,10 +101,10 @@ class PasswordResetRequest(Base):
             return column
         return None
 
-    def apply_default_configuation(self, configuration):
+    def apply_default_configuration(self, configuration):
         if not configuration.get("audit_column_name") and ("audit" not in configuration or configuration["audit"]):
             configuration["audit_column_name"] = self._get_audit_column(self._columns).name
-        return super().apply_default_configuation(configuration)
+        return super().apply_default_configuration(configuration)
 
     @property
     def users(self):
@@ -109,6 +117,15 @@ class PasswordResetRequest(Base):
             raise InputError(input_errors)
 
         username_column_name = self.configuration("username_column_name")
+        users = self.users
+        if self.configuration("where"):
+            users = self._di.call_function(
+                self.configuration("where"),
+                users=users,
+                input_output=input_output,
+                request_data=request_data,
+                routing_data=input_output.routing_data(),
+            )
         user = self.users.find(f"{username_column_name}=" + request_data[username_column_name])
 
         # no user found.  Don't return data since that gives away if the user exists in the system.

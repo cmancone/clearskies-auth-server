@@ -33,5 +33,5 @@ class JwksTest(KeyBaseTest):
                     "use": "sig",
                 }
             ],
-            result[0]["data"],
+            result[0]["keys"],
         )
