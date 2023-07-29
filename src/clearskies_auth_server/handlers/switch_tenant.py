@@ -57,7 +57,9 @@ class SwitchTenant(KeyBase):
                 f"{error_prefix} the provided 'input_error_callable' configuration is not actually callable."
             )
         if "can_switch_callable" in configuration and not callable(configuration.get("can_switch_callable")):
-            raise ValueError(f"{error_prefix} the provided 'can_switch_callable' configuration is not actually callable.")
+            raise ValueError(
+                f"{error_prefix} the provided 'can_switch_callable' configuration is not actually callable."
+            )
 
         user_model_class = configuration.get("user_model_class")
         if not inspect.isclass(user_model_class):
@@ -208,7 +210,9 @@ class SwitchTenant(KeyBase):
         username_column_name = self.configuration("username_column_name")
         tenant_id_column_name = self.configuration("tenant_id_column_name")
 
-        user = self.users.where(f"{tenant_id_column_name}={tenant_id}").where(f"{username_column_name}={username}").first()
+        user = (
+            self.users.where(f"{tenant_id_column_name}={tenant_id}").where(f"{username_column_name}={username}").first()
+        )
 
         # no user found
         if not user.exists:
@@ -217,7 +221,7 @@ class SwitchTenant(KeyBase):
         self.audit(user, self.configuration("audit_action_name_successful_login"))
         signing_key = self.get_youngest_private_key(self.configuration("path_to_private_keys"), as_json=False)
         # use the old expiration time, otherwise users can just automatically extend their session life
-        jwt_claims = self.get_jwt_claims(user, authorization_data['exp'])
+        jwt_claims = self.get_jwt_claims(user, authorization_data["exp"])
         token = jwt.JWT(header={"alg": "RS256", "typ": "JWT", "kid": signing_key["kid"]}, claims=jwt_claims)
         token.make_signed_token(signing_key)
 

@@ -89,9 +89,7 @@ class PasswordResetRequest(Base):
         for callable_name in ["where", "input_error_callable"]:
             config = configuration.get(callable_name)
             if config and not callable(config):
-                raise ValueError(
-                    f"{error_prefix} '{callable_name}' must be a callable but it is a " + type(config)
-                )
+                raise ValueError(f"{error_prefix} '{callable_name}' must be a callable but it is a " + type(config))
 
     def _get_audit_column(self, columns):
         audit_column = None

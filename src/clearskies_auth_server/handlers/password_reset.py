@@ -36,18 +36,22 @@ class PasswordReset(Update):
 
     def _check_configuration(self, configuration):
         user_model_class = configuration.get("user_model_class")
-        super()._check_configuration({
-            **{
-                "model_class": user_model_class,
-                "writeable_columns": [configuration.get("password_column_name", self._configuration_defaults.get("password_column_name"))]
-            },
-            **configuration,
-        })
+        super()._check_configuration(
+            {
+                **{
+                    "model_class": user_model_class,
+                    "writeable_columns": [
+                        configuration.get(
+                            "password_column_name", self._configuration_defaults.get("password_column_name")
+                        )
+                    ],
+                },
+                **configuration,
+            }
+        )
         error_prefix = "Configuration error for %s:" % (self.__class__.__name__)
         if "reset_key_source" in configuration and configuration["reset_key_source"] not in ["routing_data"]:
-            raise ValueError(
-                f"{error_prefix} 'reset_key_source' must be 'routing_data'"
-            )
+            raise ValueError(f"{error_prefix} 'reset_key_source' must be 'routing_data'")
 
         columns_to_check = [
             "password_column_name",
@@ -89,13 +93,19 @@ class PasswordReset(Update):
     def apply_default_configuration(self, configuration):
         if not configuration.get("audit_column_name") and ("audit" not in configuration or configuration["audit"]):
             configuration["audit_column_name"] = self._get_audit_column(self._columns).name
-        return super().apply_default_configuration({
-            **{
-                "model_class": configuration.get("user_model_class"),
-                "writeable_columns": [configuration.get("password_column_name", self._configuration_defaults.get("password_column_name"))]
-            },
-            **configuration
-        })
+        return super().apply_default_configuration(
+            {
+                **{
+                    "model_class": configuration.get("user_model_class"),
+                    "writeable_columns": [
+                        configuration.get(
+                            "password_column_name", self._configuration_defaults.get("password_column_name")
+                        )
+                    ],
+                },
+                **configuration,
+            }
+        )
 
     @property
     def users(self):
@@ -107,7 +117,9 @@ class PasswordReset(Update):
         reset_key_source_key_name = self.configuration("reset_key_source_key_name")
         reset_expiration_column_name = self.configuration("reset_expiration_column_name")
         if not routing_data.get(reset_key_source_key_name):
-            raise ValueError("Error with PasswordReset handler: the reset key wasn't found in the routing data, which usually means I'm misconfigured")
+            raise ValueError(
+                "Error with PasswordReset handler: the reset key wasn't found in the routing data, which usually means I'm misconfigured"
+            )
 
         user = self.users.find(f"{reset_key_column_name}=" + routing_data.get(reset_key_source_key_name))
         if not user.exists:
@@ -115,7 +127,11 @@ class PasswordReset(Update):
 
         # make sure it hasn't expired
         expiration = user.get(reset_expiration_column_name)
-        now = self._datetime.datetime.now(self._datetime.timezone.utc) if expiration.tzinfo else self._datetime.datetime.now()
+        now = (
+            self._datetime.datetime.now(self._datetime.timezone.utc)
+            if expiration.tzinfo
+            else self._datetime.datetime.now()
+        )
         if expiration < now:
             return None
 

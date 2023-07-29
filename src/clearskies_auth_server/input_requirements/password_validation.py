@@ -18,7 +18,9 @@ class PasswordValidation(Requirement):
             return ""
         model_columns = model.columns()
         if self.password_column_name not in model_columns:
-            raise ValueError(f"Whoops, password validation is improperly configured for column {self.column_name} in model {model.__class__.__name__}: the password column name is set to {self.column_name} but this column does not exist in the model")
+            raise ValueError(
+                f"Whoops, password validation is improperly configured for column {self.column_name} in model {model.__class__.__name__}: the password column name is set to {self.column_name} but this column does not exist in the model"
+            )
         if "validate_password" not in data:
             return "You must provide your old password when changing " + self.column_name
         if not model_columns[self.password_column_name].validate_password(model, data.get("validate_password")):
