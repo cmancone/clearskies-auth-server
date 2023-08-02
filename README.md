@@ -2,6 +2,14 @@
 
 Contains the handlers needed to manage an authentication server with clearskies.
 
+## Getting started
+
+```
+pip install clear-skies-auth-server
+```
+
+Click [here for a detailed usage example](https://github.com/cmancone/clearskies-auth-server-example).
+
 ## Overview
 
 This package provides the various pieces needed to manage an authentication server.  Specifically, it authenticates users and issues signed JSON Web Tokens (JWTs) for other services to validate.  This is intended for use as a stand-alone identity provider (IdP) and so requires a datastore where users (and, if needed, passwords) are validated.  Naturally, the datastore is provided via a clearskies model, and thus this can work with a wide variety of backends.
