@@ -154,10 +154,11 @@ class PasswordLogin(KeyBase):
                     raise ValueError(
                         f"{error_prefix} 'audit_overrides' must be a dictionary to map where user data goes in the audit record."
                     )
-                unexpected = set(overrides.keys()) - set(['username','tenant_id','user_id'])
+                unexpected = set(overrides.keys()) - set(["username", "tenant_id", "user_id"])
                 if unexpected:
                     raise ValueError(
-                        f"{error_prefix} received unexpected keys for 'audit_overrides'.  Allowed keys are 'username', 'tenant_id', and 'user_id', but I found " + ', '.join(unexpected)
+                        f"{error_prefix} received unexpected keys for 'audit_overrides'.  Allowed keys are 'username', 'tenant_id', and 'user_id', but I found "
+                        + ", ".join(unexpected)
                     )
 
         if configuration.get("login_check_callables"):
@@ -235,7 +236,7 @@ class PasswordLogin(KeyBase):
             "tenant_id": tenant_id_value,
         }
         audit_extra_data = {}
-        for (key, value) in audit_overrides.items():
+        for key, value in audit_overrides.items():
             audit_extra_data[value] = audit_extra_data_unmapped[key]
 
         # no user found

@@ -61,7 +61,7 @@ class PasswordLoginTest(KeyBaseTest):
                     "audit_overrides": {
                         "username": "email",
                         "user_id": "user_id",
-                    }
+                    },
                 },
             },
             bindings={"secrets": self.secrets},
