@@ -26,10 +26,11 @@ class PasswordLogin(KeyBase):
         "input_error_callable": None,
         "login_check_callables": [],
         "audit": True,
-        "audit_column_name": None,
+        "audit_column_name": "audit",
         "audit_action_name_successful_login": "login",
         "audit_action_name_failed_login": "failed_login",
         "audit_action_name_account_locked": "account_lockout",
+        "audit_overrides": {},
         "account_lockout": True,
         "account_lockout_failed_attempts_threshold": 10,
         "account_lockout_failed_attempts_period_minutes": 5,
@@ -147,6 +148,17 @@ class PasswordLogin(KeyBase):
                 raise ValueError(
                     f"{error_prefix} 'audit_column_name' is '{audit_column_name}' but this column is not an audit column for the user model class, '{user_model_class.__name__}'"
                 )
+            if configuration.get("audit_overrides"):
+                overrides = configuration.get("audit_overrides")
+                if not isinstance(overrides, dict):
+                    raise ValueError(
+                        f"{error_prefix} 'audit_overrides' must be a dictionary to map where user data goes in the audit record."
+                    )
+                unexpected = set(overrides.keys()) - set(['username','tenant_id','user_id'])
+                if unexpected:
+                    raise ValueError(
+                        f"{error_prefix} received unexpected keys for 'audit_overrides'.  Allowed keys are 'username', 'tenant_id', and 'user_id', but I found " + ', '.join(unexpected)
+                    )
 
         if configuration.get("login_check_callables"):
             login_check_callables = configuration.get("login_check_callables")
@@ -214,7 +226,17 @@ class PasswordLogin(KeyBase):
             if not tenant_id_value:
                 return self.error(input_output, "Invalid username/password combination", 404)
             users = users.where(f"{tenant_id_column_name}={tenant_id_value}")
-        user = users.find(f"{username_column_name}=" + request_data[username_column_name])
+        username = request_data[username_column_name]
+        user = users.find(f"{username_column_name}={username}")
+        audit_overrides = self.configuration("audit_overrides")
+        audit_extra_data_unmapped = {
+            "username": username,
+            "user_id": user.get(user.id_column_name),
+            "tenant_id": tenant_id_value,
+        }
+        audit_extra_data = {}
+        for (key, value) in audit_overrides.items():
+            audit_extra_data[value] = audit_extra_data_unmapped[key]
 
         # no user found
         if not user.exists:
@@ -227,6 +249,7 @@ class PasswordLogin(KeyBase):
                 self.configuration("audit_action_name_account_locked"),
                 data={
                     "reason": "Account Locked",
+                    **audit_extra_data,
                 },
             )
             minutes = self.configuration("account_lockout_failed_attempts_threshold")
@@ -243,6 +266,7 @@ class PasswordLogin(KeyBase):
                 self.configuration("audit_action_name_failed_login"),
                 data={
                     "reason": "Password not set - user is not configured for password login",
+                    **audit_extra_data,
                 },
             )
             return self.error(input_output, "Invalid username/password combination", 404)
@@ -254,6 +278,7 @@ class PasswordLogin(KeyBase):
                 self.configuration("audit_action_name_failed_login"),
                 data={
                     "reason": "Invalid password",
+                    **audit_extra_data,
                 },
             )
             return self.error(input_output, "Invalid username/password combination", 404)
@@ -276,11 +301,12 @@ class PasswordLogin(KeyBase):
                         self.configuration("audit_action_name_failed_login"),
                         data={
                             "reason": response,
+                            **audit_extra_data,
                         },
                     )
                     return self.error(input_output, response, 404)
 
-        self.audit(user, self.configuration("audit_action_name_successful_login"))
+        self.audit(user, self.configuration("audit_action_name_successful_login"), data=audit_extra_data)
         signing_key = self.get_youngest_private_key(self.configuration("path_to_private_keys"), as_json=False)
         jwt_claims = self.get_jwt_claims(user)
         token = jwt.JWT(header={"alg": "RS256", "typ": "JWT", "kid": signing_key["kid"]}, claims=jwt_claims)
@@ -379,4 +405,4 @@ class PasswordLogin(KeyBase):
     def audit(self, user, action_name, data=None):
         if not self.configuration("audit"):
             return
-        self._columns[self.configuration("audit_column_name")].record(user, action_name, data=None)
+        self._columns[self.configuration("audit_column_name")].record(user, action_name, data=data)

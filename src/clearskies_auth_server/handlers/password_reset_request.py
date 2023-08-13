@@ -16,7 +16,7 @@ class PasswordResetRequest(Base):
         "where": None,
         "input_error_callable": None,
         "audit": True,
-        "audit_column_name": None,
+        "audit_column_name": "audit",
         "audit_action_name": "request_password_reset",
         "users": None,
     }

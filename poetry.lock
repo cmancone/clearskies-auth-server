@@ -219,13 +219,13 @@ files = [
 
 [[package]]
 name = "clear-skies"
-version = "1.18.7"
+version = "1.18.8"
 description = "A framework for building backends in the cloud"
 optional = false
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "clear_skies-1.18.7-py3-none-any.whl", hash = "sha256:144d77419da176a402291ab0dca50702798ff0526c0b197b50c2fd1794571be4"},
-    {file = "clear_skies-1.18.7.tar.gz", hash = "sha256:6f87f8ccb32153ad35094bdaa06da155a592f20444bf5e6034bc6aff7d3aff35"},
+    {file = "clear_skies-1.18.8-py3-none-any.whl", hash = "sha256:5bc800244f5d353823eb547ce0b30e5bc61c65f0ede8d880a90b9d4cf9dad731"},
+    {file = "clear_skies-1.18.8.tar.gz", hash = "sha256:143fe52d31af16305afcfbb1fa57989efd52e0e155514bcfc04c45c0b61d7d9a"},
 ]
 
 [package.dependencies]
