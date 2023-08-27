@@ -110,3 +110,11 @@ class KeyBase(HandlerBase):
 
     def save_keys(self, path, keys):
         self._secrets.upsert(path, json.dumps(keys))
+
+    def respond_unstructured(self, input_output, response_data, status_code):
+        response_headers = self.configuration("response_headers")
+        if response_headers:
+            input_output.set_headers(response_headers)
+        for security_header in self.configuration("security_headers"):
+            security_header.set_headers_for_input_output(input_output)
+        return input_output.respond(response_data, status_code)

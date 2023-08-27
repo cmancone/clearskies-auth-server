@@ -19,4 +19,5 @@ class Jwks(KeyBase):
             }
             for key in public_keys.values()
         ]
-        return input_output.respond({"keys": keys}, 200)
+
+        return self.respond_unstructured(input_output, {"keys": keys}, 200)

@@ -313,7 +313,8 @@ class PasswordLogin(KeyBase):
         token = jwt.JWT(header={"alg": "RS256", "typ": "JWT", "kid": signing_key["kid"]}, claims=jwt_claims)
         token.make_signed_token(signing_key)
 
-        return input_output.respond(
+        return self.respond_unstructured(
+            input_output,
             {
                 "token": token.serialize(),
                 "expires_at": jwt_claims["exp"],
