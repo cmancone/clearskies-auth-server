@@ -254,13 +254,12 @@ class PasswordLogin(KeyBase):
                 },
             )
             minutes = self.configuration("account_lockout_failed_attempts_threshold")
-            s = 's' if int(minutes) != 1 else ''
+            s = "s" if int(minutes) != 1 else ""
             return self.input_errors(
                 input_output,
                 {
-                    username_column_name:
-                    f"Your account is under a {minutes}{s} minute lockout due to too many failed login attempts"
-                }
+                    username_column_name: f"Your account is under a {minutes}{s} minute lockout due to too many failed login attempts"
+                },
             )
 
         # password not set

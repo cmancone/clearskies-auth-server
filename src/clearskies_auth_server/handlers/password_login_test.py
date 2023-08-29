@@ -192,7 +192,7 @@ class PasswordLoginTest(KeyBaseTest):
                 "password": "wrongpassword1",
             }
         )
-        self.assertIn("lockout", response[0]['input_errors']["email"])
+        self.assertIn("lockout", response[0]["input_errors"]["email"])
         self.assertEquals(200, response[1])
         self.assertEquals("input_errors", response[0]["status"])
         self.assertEquals([], response[0]["data"])
@@ -280,4 +280,4 @@ class PasswordLoginTest(KeyBaseTest):
         )
         self.assertEquals(200, response[1])
         self.assertEquals("input_errors", response[0]["status"])
-        self.assertEquals("not gonna happen", response[0]['input_errors']["email"])
+        self.assertEquals("not gonna happen", response[0]["input_errors"]["email"])
