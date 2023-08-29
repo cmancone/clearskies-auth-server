@@ -108,8 +108,8 @@ class PasswordLoginTest(KeyBaseTest):
                 "password": "crappypassword",
             }
         )
-        self.assertEquals(404, response[1])
-        self.assertEquals("client_error", response[0]["status"])
+        self.assertEquals(200, response[1])
+        self.assertEquals("input_errors", response[0]["status"])
         self.assertEquals([], response[0]["data"])
         self.assertEquals(["create"], [audit.action for audit in self.user.audit])
 
@@ -120,8 +120,8 @@ class PasswordLoginTest(KeyBaseTest):
                 "password": "wrongpassword",
             }
         )
-        self.assertEquals(404, response[1])
-        self.assertEquals("client_error", response[0]["status"])
+        self.assertEquals(200, response[1])
+        self.assertEquals("input_errors", response[0]["status"])
         self.assertEquals([], response[0]["data"])
         self.assertEquals(["create", "failed_login"], [audit.action for audit in self.user.audit])
 
@@ -192,9 +192,9 @@ class PasswordLoginTest(KeyBaseTest):
                 "password": "wrongpassword1",
             }
         )
-        self.assertIn("lockout", response[0]["error"])
-        self.assertEquals(404, response[1])
-        self.assertEquals("client_error", response[0]["status"])
+        self.assertIn("lockout", response[0]['input_errors']["email"])
+        self.assertEquals(200, response[1])
+        self.assertEquals("input_errors", response[0]["status"])
         self.assertEquals([], response[0]["data"])
         self.assertEquals(
             [
@@ -278,5 +278,6 @@ class PasswordLoginTest(KeyBaseTest):
                 "password": "crappypassword",
             }
         )
-        self.assertEquals(404, response[1])
-        self.assertEquals("not gonna happen", response[0]["error"])
+        self.assertEquals(200, response[1])
+        self.assertEquals("input_errors", response[0]["status"])
+        self.assertEquals("not gonna happen", response[0]['input_errors']["email"])

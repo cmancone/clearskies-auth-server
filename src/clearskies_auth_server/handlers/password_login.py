@@ -225,7 +225,7 @@ class PasswordLogin(KeyBase):
             if self.configuration("tenant_id_source") == "routing_data":
                 tenant_id_value = input_output.routing_data().get(tenant_id_source_key_name)
             if not tenant_id_value:
-                return self.error(input_output, "Invalid username/password combination", 404)
+                return self.input_errors(input_output, {username_column_name: "Invalid username/password combination"})
             users = users.where(f"{tenant_id_column_name}={tenant_id_value}")
         username = request_data[username_column_name]
         user = users.find(f"{username_column_name}={username}")
@@ -241,7 +241,7 @@ class PasswordLogin(KeyBase):
 
         # no user found
         if not user.exists:
-            return self.error(input_output, "Invalid username/password combination", 404)
+            return self.input_errors(input_output, {username_column_name: "Invalid username/password combination"})
 
         # account lockout
         if self.account_locked(user):
@@ -254,10 +254,13 @@ class PasswordLogin(KeyBase):
                 },
             )
             minutes = self.configuration("account_lockout_failed_attempts_threshold")
-            return self.error(
+            s = 's' if int(minutes) != 1 else ''
+            return self.input_errors(
                 input_output,
-                f"Your account us under a {minutes} minute lockout due to too many failed login attempts",
-                404,
+                {
+                    username_column_name:
+                    f"Your account is under a {minutes}{s} minute lockout due to too many failed login attempts"
+                }
             )
 
         # password not set
@@ -270,7 +273,7 @@ class PasswordLogin(KeyBase):
                     **audit_extra_data,
                 },
             )
-            return self.error(input_output, "Invalid username/password combination", 404)
+            return self.input_errors(input_output, {username_column_name: "Invalid username/password combination"})
 
         # invalid password
         if not password_column.validate_password(user, request_data[password_column_name]):
@@ -282,7 +285,7 @@ class PasswordLogin(KeyBase):
                     **audit_extra_data,
                 },
             )
-            return self.error(input_output, "Invalid username/password combination", 404)
+            return self.input_errors(input_output, {username_column_name: "Invalid username/password combination"})
 
         # developer-defined checks
         login_check_callables = self.configuration("login_check_callables")
@@ -305,7 +308,7 @@ class PasswordLogin(KeyBase):
                             **audit_extra_data,
                         },
                     )
-                    return self.error(input_output, response, 404)
+                    return self.input_errors(input_output, {username_column_name: response})
 
         self.audit(user, self.configuration("audit_action_name_successful_login"), data=audit_extra_data)
         signing_key = self.get_youngest_private_key(self.configuration("path_to_private_keys"), as_json=False)
