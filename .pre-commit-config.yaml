@@ -10,7 +10,7 @@ repos:
     hooks:
     -   id: black
         name: black
-        entry: bash -c 'cd python && poetry run black .'
+        entry: bash -c 'poetry run black .'
         require_serial: true
         language: system
         types: [python]
