@@ -55,7 +55,7 @@ class PasswordLogin(KeyBase):
         self._check_required_configuration(configuration, error_prefix)
         self._check_user_model_class_configuration(configuration, error_prefix)
 
-        user_model_class = configuration.get('user_model_class')
+        user_model_class = configuration.get("user_model_class")
         user_model = self._di.build(user_model_class)
         temporary_columns = user_model.columns()
         username_column_name = configuration.get("username_column_name", "email")
@@ -213,9 +213,7 @@ class PasswordLogin(KeyBase):
                     f"{error_prefix} 'tenant_id_column_name' is specified, which enables multi-tenant login. However, this also requires you to define '{config_name}', which is not defined."
                 )
         if configuration.get("tenant_id_source") not in ["routing_data"]:
-            raise ValueError(
-                f"{error_prefix} 'tenant_id_source must be set to 'routing_data', but is something else."
-            )
+            raise ValueError(f"{error_prefix} 'tenant_id_source must be set to 'routing_data', but is something else.")
 
     def _get_audit_column(self, columns):
         audit_column = None
