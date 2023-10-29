@@ -15,4 +15,4 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
-        files: ^src/clearskies/
+        files: ^src/clearskies_auth_server/

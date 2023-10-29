@@ -51,30 +51,14 @@ class PasswordLogin(KeyBase):
 
     def _check_configuration(self, configuration):
         super()._check_configuration(configuration)
+        self._my_configuration_checks(configuration)
+
+    def _my_configuration_checks(self, configuration):
         error_prefix = "Invalid configuration for handler " + self.__class__.__name__ + ":"
-        for key in self._required_configurations:
-            if not configuration.get(key):
-                raise ValueError(f"{error_prefix} missing required configuration '{key}'")
-        if "claims_callable" in configuration and not callable(configuration.get("claims_callable")):
-            raise ValueError(f"{error_prefix} the provided 'claims_callable' configuration is not actually callable.")
-        if "input_error_callable" in configuration and not callable(configuration.get("input_error_callable")):
-            raise ValueError(
-                f"{error_prefix} the provided 'input_error_callable' configuration is not actually callable."
-            )
+        self._check_required_configuration(configuration, error_prefix)
+        self._check_user_model_class_configuration(configuration, error_prefix)
 
         user_model_class = configuration.get("user_model_class")
-        if not inspect.isclass(user_model_class):
-            raise ValueError(
-                f"{error_prefix} 'user_model_class' should be a model class, but instead it is a '"
-                + type(user_model_class)
-                + "'"
-            )
-        if not getattr(user_model_class, "where"):
-            raise ValueError(
-                f"{error_prefix} 'user_model_class' should be a clearskies model class, but instead it is a '"
-                + user_model_class.__name__
-                + "'"
-            )
         user_model = self._di.build(user_model_class)
         temporary_columns = user_model.columns()
         username_column_name = configuration.get("username_column_name", "email")
@@ -106,7 +90,89 @@ class PasswordLogin(KeyBase):
         # and confusing errors.  Therefore, we get the columns above without any overrides, do the first round of user input validation, and then
         # we re-fetch the columns and set our overrides.
         self._columns = user_model.columns(overrides={password_column_name: {"for_login": True}})
+        self._check_claims_configuration(configuration, error_prefix)
+        self._check_input_error_callable_configuration(configuration, error_prefix)
+        self._check_audit_configuration(configuration, error_prefix)
+        self._check_login_check_callables(configuration, error_prefix)
+        self._check_tenant_id_column_name_configuration(configuration, error_prefix)
 
+        if configuration.get("account_lockout") and not configuration.get("audit"):
+            raise ValueError(
+                f"{error_prefix} 'account_lockout' is set to True but 'audit' is False.  You must enable auditing to turn on account lockouts."
+            )
+
+    def _check_required_configuration(self, configuration, error_prefix):
+        for key in self._required_configurations:
+            if not configuration.get(key):
+                raise ValueError(f"{error_prefix} missing required configuration '{key}'")
+
+    def _check_user_model_class_configuration(self, configuration, error_prefix):
+        user_model_class = configuration.get("user_model_class")
+        if not inspect.isclass(user_model_class):
+            raise ValueError(
+                f"{error_prefix} 'user_model_class' should be a model class, but instead it is a '"
+                + type(user_model_class)
+                + "'"
+            )
+        if not getattr(user_model_class, "where"):
+            raise ValueError(
+                f"{error_prefix} 'user_model_class' should be a clearskies model class, but instead it is a '"
+                + user_model_class.__name__
+                + "'"
+            )
+
+    def _check_input_error_callable_configuration(self, configuration, error_prefix):
+        if "input_error_callable" in configuration and not callable(configuration.get("input_error_callable")):
+            raise ValueError(
+                f"{error_prefix} the provided 'input_error_callable' configuration is not actually callable."
+            )
+
+    def _check_audit_configuration(self, configuration, error_prefix):
+        if not configuration.get("audit"):
+            return
+
+        audit_column_name = configuration.get("audit_column_name")
+        if audit_column_name not in self._columns:
+            raise ValueError(
+                f"{error_prefix} 'audit_column_name' is '{audit_column_name}' but this column does not exist in the user model class, '{user_model_class.__name__}'"
+            )
+        if not isinstance(self._columns[audit_column_name], Audit):
+            raise ValueError(
+                f"{error_prefix} 'audit_column_name' is '{audit_column_name}' but this column is not an audit column for the user model class, '{user_model_class.__name__}'"
+            )
+        if configuration.get("audit_overrides"):
+            overrides = configuration.get("audit_overrides")
+            if not isinstance(overrides, dict):
+                raise ValueError(
+                    f"{error_prefix} 'audit_overrides' must be a dictionary to map where user data goes in the audit record."
+                )
+            unexpected = set(overrides.keys()) - set(["username", "tenant_id", "user_id"])
+            if unexpected:
+                raise ValueError(
+                    f"{error_prefix} received unexpected keys for 'audit_overrides'.  Allowed keys are 'username', 'tenant_id', and 'user_id', but I found "
+                    + ", ".join(unexpected)
+                )
+
+    def _check_login_check_callables(self, configuration, error_prefix):
+        if not configuration.get("login_check_callables"):
+            return
+
+        login_check_callables = configuration.get("login_check_callables")
+        if not isinstance(login_check_callables, list):
+            raise ValueError(
+                f"{error_prefix} 'login_check_callables' should be a list, but instead it has type '"
+                + type(login_check_callables)
+                + "'"
+            )
+        for index, login_check_callable in enumerate(login_check_callables):
+            if not callable(login_check_callable):
+                raise ValueError(
+                    f"{error_prefix} each entry in 'login_check_callables' should be a callable, but entry #{index} is not callable."
+                )
+
+    def _check_claims_configuration(self, configuration, error_prefix):
+        if "claims_callable" in configuration and not callable(configuration.get("claims_callable")):
+            raise ValueError(f"{error_prefix} the provided 'claims_callable' configuration is not actually callable.")
         if configuration.get("claims_callable") and configuration.get("claims_column_names"):
             raise ValueError(
                 f"{error_prefix} you set both 'claims_callable' and 'claims_column_names' but only one can be set."
@@ -116,80 +182,41 @@ class PasswordLogin(KeyBase):
                 f"{error_prefix} you must set either 'claims_callable' or 'claims_column_names' but neither was set."
             )
 
-        if configuration.get("claims_column_names"):
-            claims_column_names = configuration["claims_column_names"]
-            if not isinstance(claims_column_names, list):
-                raise ValueError(
-                    f"{error_prefix} 'claims_column_names' should be a list of column names, but instead has type "
-                    + type(claims_column_names)
-                )
-            for column_name in claims_column_names:
-                if column_name not in self._columns:
-                    raise ValueError(
-                        f"{error_prefix} a configured claim column, '{column_name}' does not exist in the user model"
-                    )
-                if not self._columns[column_name].is_readable:
-                    raise ValueError(
-                        f"{error_prefix} a configured claim column, '{column_name}' is not readable and so cannot be used in the claims"
-                    )
+        if not configuration.get("claims_column_names"):
+            return
 
-        if configuration.get("account_lockout") and not configuration.get("audit"):
+        claims_column_names = configuration["claims_column_names"]
+        if not isinstance(claims_column_names, list):
             raise ValueError(
-                f"{error_prefix} 'account_lockout' is set to True but 'audit' is False.  You must enable auditing to turn on account lockouts."
+                f"{error_prefix} 'claims_column_names' should be a list of column names, but instead has type "
+                + type(claims_column_names)
             )
+        for column_name in claims_column_names:
+            if column_name not in self._columns:
+                raise ValueError(
+                    f"{error_prefix} a configured claim column, '{column_name}' does not exist in the user model"
+                )
+            if not self._columns[column_name].is_readable:
+                raise ValueError(
+                    f"{error_prefix} a configured claim column, '{column_name}' is not readable and so cannot be used in the claims"
+                )
 
-        if configuration.get("audit"):
-            audit_column_name = configuration.get("audit_column_name")
-            if audit_column_name not in self._columns:
-                raise ValueError(
-                    f"{error_prefix} 'audit_column_name' is '{audit_column_name}' but this column does not exist in the user model class, '{user_model_class.__name__}'"
-                )
-            if not isinstance(self._columns[audit_column_name], Audit):
-                raise ValueError(
-                    f"{error_prefix} 'audit_column_name' is '{audit_column_name}' but this column is not an audit column for the user model class, '{user_model_class.__name__}'"
-                )
-            if configuration.get("audit_overrides"):
-                overrides = configuration.get("audit_overrides")
-                if not isinstance(overrides, dict):
-                    raise ValueError(
-                        f"{error_prefix} 'audit_overrides' must be a dictionary to map where user data goes in the audit record."
-                    )
-                unexpected = set(overrides.keys()) - set(["username", "tenant_id", "user_id"])
-                if unexpected:
-                    raise ValueError(
-                        f"{error_prefix} received unexpected keys for 'audit_overrides'.  Allowed keys are 'username', 'tenant_id', and 'user_id', but I found "
-                        + ", ".join(unexpected)
-                    )
+    def _check_tenant_id_column_name_configuration(self, configuration, error_prefix):
+        if not configuration.get("tenant_id_column_name"):
+            return
 
-        if configuration.get("login_check_callables"):
-            login_check_callables = configuration.get("login_check_callables")
-            if not isinstance(login_check_callables, list):
+        tenant_id_column_name = configuration.get("tenant_id_column_name")
+        if tenant_id_column_name not in self._columns:
+            raise ValueError(
+                f"{error_prefix} 'tenant_id_column_name' is '{tenant_id_column_name}' but this column does not exist in the user model class, '{user_model_class.__name__}'"
+            )
+        for config_name in ["tenant_id_source", "tenant_id_source_key_name"]:
+            if not configuration.get(config_name):
                 raise ValueError(
-                    f"{error_prefix} 'login_check_callables' should be a list, but instead it has type '"
-                    + type(login_check_callables)
-                    + "'"
+                    f"{error_prefix} 'tenant_id_column_name' is specified, which enables multi-tenant login. However, this also requires you to define '{config_name}', which is not defined."
                 )
-            for index, login_check_callable in enumerate(login_check_callables):
-                if not callable(login_check_callable):
-                    raise ValueError(
-                        f"{error_prefix} each entry in 'login_check_callables' should be a callable, but entry #{index} is not callable."
-                    )
-
-        if configuration.get("tenant_id_column_name"):
-            tenant_id_column_name = configuration.get("tenant_id_column_name")
-            if tenant_id_column_name not in self._columns:
-                raise ValueError(
-                    f"{error_prefix} 'tenant_id_column_name' is '{tenant_id_column_name}' but this column does not exist in the user model class, '{user_model_class.__name__}'"
-                )
-            for config_name in ["tenant_id_source", "tenant_id_source_key_name"]:
-                if not configuration.get(config_name):
-                    raise ValueError(
-                        f"{error_prefix} 'tenant_id_column_name' is specified, which enables multi-tenant login. However, this also requires you to define '{config_name}', which is not defined."
-                    )
-            if configuration.get("tenant_id_source") not in ["routing_data"]:
-                raise ValueError(
-                    f"{error_prefix} 'tenant_id_source must be set to 'routing_data', but is something else."
-                )
+        if configuration.get("tenant_id_source") not in ["routing_data"]:
+            raise ValueError(f"{error_prefix} 'tenant_id_source must be set to 'routing_data', but is something else.")
 
     def _get_audit_column(self, columns):
         audit_column = None
