@@ -51,6 +51,9 @@ class PasswordLogin(KeyBase):
 
     def _check_configuration(self, configuration):
         super()._check_configuration(configuration)
+        self._my_configuration_checks(configuration)
+
+    def _my_configuration_checks(self, configuration):
         error_prefix = "Invalid configuration for handler " + self.__class__.__name__ + ":"
         self._check_required_configuration(configuration, error_prefix)
         self._check_user_model_class_configuration(configuration, error_prefix)
