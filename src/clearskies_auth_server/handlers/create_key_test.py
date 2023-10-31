@@ -3,13 +3,13 @@ import unittest
 from unittest.mock import MagicMock, call
 from types import SimpleNamespace
 from jwcrypto import jwk
-from .key_base_test import KeyBaseTest
+from .key_base_test_helper import KeyBaseTestHelper
 from .create_key import CreateKey
 from clearskies.contexts import test
 import datetime
 
 
-class CreateKeyTest(KeyBaseTest):
+class CreateKeyTest(KeyBaseTestHelper):
     def test_create_key(self):
         create_key = test(
             {

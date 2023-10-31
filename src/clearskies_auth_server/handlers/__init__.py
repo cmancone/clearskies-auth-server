@@ -3,6 +3,7 @@ from .delete_key import DeleteKey
 from .delete_oldest_key import DeleteOldestKey
 from .jwks import Jwks
 from .key_base import KeyBase
+from .key_base_test_helper import KeyBaseTestHelper
 from .list_keys import ListKeys
 from .password_less_link_login import PasswordLessLinkLogin
 from .password_login import PasswordLogin
@@ -19,6 +20,7 @@ __all__ = [
     "DeleteOldestKey",
     "ListKeys",
     "KeyBase",
+    "KeyBaseTestHelper",
     "Jwks",
     "PasswordLessLinkLogin",
     "PasswordLogin",

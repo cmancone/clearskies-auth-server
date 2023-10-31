@@ -3,12 +3,12 @@ import unittest
 from unittest.mock import MagicMock, call
 from types import SimpleNamespace
 from jwcrypto import jwk
-from .key_base_test import KeyBaseTest
+from .key_base_test_helper import KeyBaseTestHelper
 from .delete_oldest_key import DeleteOldestKey
 from clearskies.contexts import test
 
 
-class DeleteOldestKeyTest(KeyBaseTest):
+class DeleteOldestKeyTest(KeyBaseTestHelper):
     def test_never_delete_the_last_key(self):
         delete_oldest_key = test(
             {

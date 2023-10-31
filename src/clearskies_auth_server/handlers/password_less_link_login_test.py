@@ -3,7 +3,7 @@ from jose import jwt
 from collections import OrderedDict
 import unittest
 from unittest.mock import MagicMock, call
-from .key_base_test import KeyBaseTest
+from .key_base_test_helper import KeyBaseTestHelper
 from .password_less_link_login import PasswordLessLinkLogin
 import clearskies
 from clearskies.contexts import test
@@ -42,7 +42,7 @@ class User(clearskies.Model):
         )
 
 
-class PasswordLessLinkLoginTest(KeyBaseTest):
+class PasswordLessLinkLoginTest(KeyBaseTestHelper):
     def setUp(self):
         super().setUp()
 

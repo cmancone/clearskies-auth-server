@@ -3,12 +3,12 @@ import unittest
 from unittest.mock import MagicMock, call
 from types import SimpleNamespace
 from jwcrypto import jwk
-from .key_base_test import KeyBaseTest
+from .key_base_test_helper import KeyBaseTestHelper
 from .jwks import Jwks
 from clearskies.contexts import test
 
 
-class JwksTest(KeyBaseTest):
+class JwksTest(KeyBaseTestHelper):
     def test_jwks(self):
         jwks = test(
             {

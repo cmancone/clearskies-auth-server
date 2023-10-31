@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import MagicMock, call
 from types import SimpleNamespace
 from jwcrypto import jwk
-from .key_base_test import KeyBaseTest
+from .key_base_test_helper import KeyBaseTestHelper
 from .password_login import PasswordLogin
 import clearskies
 from clearskies.contexts import test
@@ -45,7 +45,7 @@ class User(clearskies.Model):
         )
 
 
-class PasswordLoginTest(KeyBaseTest):
+class PasswordLoginTest(KeyBaseTestHelper):
     def setUp(self):
         super().setUp()
         self.login = test(

@@ -7,7 +7,7 @@ from .key_base import KeyBase
 from clearskies.contexts import test
 
 
-class KeyBaseTest(unittest.TestCase):
+class KeyBaseTestHelper(unittest.TestCase):
     def setUp(self):
         self.key_id = "my_test_key_1"
         self.key = jwk.JWK.generate(
