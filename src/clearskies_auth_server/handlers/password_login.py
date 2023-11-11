@@ -418,7 +418,7 @@ class PasswordLogin(KeyBase):
 
     def get_jwt_claims(self, user):
         if self.configuration("claims_callable"):
-            claims = self._di.call_function(user=user)
+            claims = self._di.call_function(self.configuration("claims_callable"), user=user)
         else:
             claims = {
                 claim_column: user.get(claim_column) for claim_column in self.configuration("claims_column_names")
