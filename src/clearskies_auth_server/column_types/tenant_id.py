@@ -49,4 +49,5 @@ class TenantId(BelongsTo):
         """
         A hook to automatically apply filtering whenever the column makes an appearance in a get/update/list/search handler.
         """
-        return models.where(f"{self.name}=" + self._get_tenant_id())
+        table_name = models.table_name()
+        return models.where(f"{table_name}.{self.name}=" + self._get_tenant_id())
