@@ -88,7 +88,7 @@ class PasswordLessLinkLogin(PasswordLogin):
         if not login_key:
             return self.error(input_output, "Missing login key.", 404)
         if not isinstance(login_key, str):
-            return self.error(input_output, "Login key  was not a string.", 404)
+            return self.error(input_output, "Login key was not a string.", 404)
 
         key_column_name = self.configuration("key_column_name")
         users = self.users
@@ -163,6 +163,7 @@ class PasswordLessLinkLogin(PasswordLogin):
                 key_expiration_column_name: self._datetime.datetime.now(self._datetime.timezone.utc),
             }
         )
+        self.login_successful(user, input_output)
 
         return self.respond_unstructured(
             input_output,
@@ -172,6 +173,9 @@ class PasswordLessLinkLogin(PasswordLogin):
             },
             200,
         )
+
+    def login_successful(self, user, input_output):
+        pass
 
     def get_login_key(self, input_output):
         key_source = self.configuration("key_source")
