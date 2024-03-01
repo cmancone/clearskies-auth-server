@@ -24,6 +24,8 @@ class AuditRecord(clearskies.Model):
                 string("class"),
                 string("resource_id"),
                 string("action"),
+                string("email"),
+                string("user_id"),
                 json("data"),
                 created("created_at"),
                 updated("updated_at"),

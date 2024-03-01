@@ -245,7 +245,11 @@ class PasswordLogin(KeyBase):
         password_column_name = self.configuration("password_column_name")
         password_column = self._columns[password_column_name]
         tenant_id_value = None
+        username = request_data[username_column_name]
         users = self.users
+        audit_extra_data = {
+            username_column_name: username,
+        }
         if self.configuration("tenant_id_column_name"):
             tenant_id_column_name = self.configuration("tenant_id_column_name")
             tenant_id_source_key_name = self.configuration("tenant_id_source_key_name")
@@ -254,17 +258,9 @@ class PasswordLogin(KeyBase):
             if not tenant_id_value:
                 return self.input_errors(input_output, {username_column_name: "Invalid username/password combination"})
             users = users.where(f"{tenant_id_column_name}={tenant_id_value}")
-        username = request_data[username_column_name]
+            audit_extra_data[tenant_id_column_name] = tenant_id_value
         user = users.find(f"{username_column_name}={username}")
-        audit_overrides = self.configuration("audit_overrides")
-        audit_extra_data_unmapped = {
-            "username": username,
-            "user_id": user.get(user.id_column_name),
-            "tenant_id": tenant_id_value,
-        }
-        audit_extra_data = {}
-        for key, value in audit_overrides.items():
-            audit_extra_data[value] = audit_extra_data_unmapped[key]
+        audit_extra_data["user_id"] = user.get(user.id_column_name)
 
         # no user found
         if not user.exists:
@@ -279,6 +275,7 @@ class PasswordLogin(KeyBase):
                     "reason": "Account Locked",
                     **audit_extra_data,
                 },
+                record_data=audit_extra_data,
             )
             minutes = self.configuration("account_lockout_failed_attempts_threshold")
             s = "s" if int(minutes) != 1 else ""
@@ -298,6 +295,7 @@ class PasswordLogin(KeyBase):
                     "reason": "Password not set - user is not configured for password login",
                     **audit_extra_data,
                 },
+                record_data=audit_extra_data,
             )
             return self.input_errors(input_output, {username_column_name: "Invalid username/password combination"})
 
@@ -310,6 +308,7 @@ class PasswordLogin(KeyBase):
                     "reason": "Invalid password",
                     **audit_extra_data,
                 },
+                record_data=audit_extra_data,
             )
             return self.input_errors(input_output, {username_column_name: "Invalid username/password combination"})
 
@@ -333,10 +332,16 @@ class PasswordLogin(KeyBase):
                             "reason": response,
                             **audit_extra_data,
                         },
+                        record_data=audit_extra_data,
                     )
                     return self.input_errors(input_output, {username_column_name: response})
 
-        self.audit(user, self.configuration("audit_action_name_successful_login"), data=audit_extra_data)
+        self.audit(
+            user,
+            self.configuration("audit_action_name_successful_login"),
+            data=audit_extra_data,
+            record_data=audit_extra_data,
+        )
         signing_key = self.get_youngest_private_key(self.configuration("path_to_private_keys"), as_json=False)
         jwt_claims = self.get_jwt_claims(user)
         token = jwt.JWT(header={"alg": "RS256", "typ": "JWT", "kid": signing_key["kid"]}, claims=jwt_claims)
@@ -433,7 +438,9 @@ class PasswordLogin(KeyBase):
             "iat": int(now.timestamp()),
         }
 
-    def audit(self, user, action_name, data=None):
+    def audit(self, user, action_name, data=None, record_data=None):
         if not self.configuration("audit"):
             return
-        self._columns[self.configuration("audit_column_name")].record(user, action_name, data=data)
+        self._columns[self.configuration("audit_column_name")].record(
+            user, action_name, data=data, record_data=record_data
+        )
