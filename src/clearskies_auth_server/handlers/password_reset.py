@@ -13,6 +13,7 @@ class PasswordReset(Update):
         "reset_expiration_column_name": "reset_key_expiration",
         "reset_key_source": "routing_data",
         "reset_key_source_key_name": "reset_key",
+        "output_map": None,
         "model_class": "",
         "column_overrides": None,
         "columns": None,
