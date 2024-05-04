@@ -2,7 +2,7 @@ import secrets
 import inspect
 from clearskies.handlers.exceptions import InputError
 from clearskies.handlers import Update
-from clearskies.column_types import Audit
+from clearskies.column_types import Audit, String
 
 
 class PasswordReset(Update):
@@ -137,6 +137,20 @@ class PasswordReset(Update):
             return None
 
         return user.get(self.users.id_column_name)
+
+    def _get_writeable_columns(self):
+        """
+        We want to make sure that our reset key is cleared after we save.
+        The simplest way to do this is to  override the writeable columns (which
+        are used during the save operation).  We'll replace the reset column with
+        a setable column which automatically sets it to an empty string.
+        """
+        reset_key_column_name = self.configuration("reset_key_column_name")
+        set_to_blank = self._di.build(String)
+        set_to_blank.configure(reset_key_column_name, {"setable": ""}, self.configuration("user_model_class"))
+        writeable_columns = super()._get_writeable_columns()
+        writeable_columns[reset_key_column_name] = set_to_blank
+        return writeable_columns
 
     def documentation(self):
         return self._documentation(
