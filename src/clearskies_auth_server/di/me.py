@@ -34,6 +34,8 @@ class Me(clearskies.di.AdditionalConfig):
             raise ValueError(
                 f"{error_prefix}, but I can't provide it because I wasn't given the corresponding model class"
             )
+
+        models = di.build(model_class)
         input_output = di.build("input_output", cache=True)
         authorization_data = input_output.get_authorization_data()
         id = authorization_data.get(id_key_in_authorization_data)
@@ -42,9 +44,10 @@ class Me(clearskies.di.AdditionalConfig):
                 f"{error_prefix}, but the corresponding key in the authorization data, '{id_key_in_authorization_data}' does not exist or is empty.  Perhaps you forgot to set an authentication rule on your endpoint?"
             )
 
-        id_column_name = model_class.id_column_name
-        model = model_class.find(f"{id_column_name}={id}")
+        id_column_name = models.id_column_name
+        model = models.find(f"{id_column_name}={id}")
         if not model.exists:
+            print(model._backend._tables)
             raise ValueError(
                 f"{error_prefix}, but when I searched for {id_column_name}={id} in the class {model_class.__name__} I didn't find anything"
             )
