@@ -18,6 +18,9 @@ class Me(clearskies.di.AdditionalConfig):
         self.tenant_id_key_in_authorization_data = tenant_id_key_in_authorization_data
         self.tenant_di_name = tenant_di_name
 
+    def can_cache(self, name, context=None):
+        return False
+
     def can_build(self, name):
         return name in [self.user_di_name, self.tenant_di_name]
 
@@ -47,7 +50,6 @@ class Me(clearskies.di.AdditionalConfig):
         id_column_name = models.id_column_name
         model = models.find(f"{id_column_name}={id}")
         if not model.exists:
-            print(model._backend._tables)
             raise ValueError(
                 f"{error_prefix}, but when I searched for {id_column_name}={id} in the class {model_class.__name__} I didn't find anything"
             )
