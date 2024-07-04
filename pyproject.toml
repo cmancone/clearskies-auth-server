@@ -2,7 +2,7 @@
 
 [tool.poetry]
 name = "clear-skies-auth-server"
-version = "0.12.9"
+version = "0.12.10"
 description = "clearskies bindings for managing an authentication server that issues JWTs"
 authors = [
     "Conor Mancone <cmancone@gmail.com>",
