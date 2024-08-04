@@ -336,25 +336,29 @@ class PasswordLogin(KeyBase):
                     )
                     return self.input_errors(input_output, {username_column_name: response})
 
+        [jwt, jwt_claims] = self.create_jwt(user, audit_extra_data=audit_extra_data, record_data=audit_extra_data)
+
+        return self.respond_unstructured(
+            input_output,
+            {
+                "token": jwt.serialize(),
+                "expires_at": jwt_claims["exp"],
+            },
+            200,
+        )
+
+    def create_jwt(self, user, audit_extra_data=None, record_data=None):
         self.audit(
             user,
             self.configuration("audit_action_name_successful_login"),
             data=audit_extra_data,
-            record_data=audit_extra_data,
+            record_data=record_data,
         )
         signing_key = self.get_youngest_private_key(self.configuration("path_to_private_keys"), as_json=False)
         jwt_claims = self.get_jwt_claims(user)
         token = jwt.JWT(header={"alg": "RS256", "typ": "JWT", "kid": signing_key["kid"]}, claims=jwt_claims)
         token.make_signed_token(signing_key)
-
-        return self.respond_unstructured(
-            input_output,
-            {
-                "token": token.serialize(),
-                "expires_at": jwt_claims["exp"],
-            },
-            200,
-        )
+        return [token, jwt_claims]
 
     def account_locked(self, user):
         if not self.configuration("account_lockout"):

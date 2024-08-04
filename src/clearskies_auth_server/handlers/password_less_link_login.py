@@ -152,11 +152,7 @@ class PasswordLessLinkLogin(PasswordLogin):
                     )
                     return self.error(input_output, "No matching login session found.", 404)
 
-        signing_key = self.get_youngest_private_key(self.configuration("path_to_private_keys"), as_json=False)
-        jwt_claims = self.get_jwt_claims(user)
-        token = jwt.JWT(header={"alg": "RS256", "typ": "JWT", "kid": signing_key["kid"]}, claims=jwt_claims)
-        token.make_signed_token(signing_key)
-        self.audit(user, self.configuration("audit_action_name_successful_login"), data=audit_extra_data)
+        [jwt, jwt_claims] = self.create_jwt(user, audit_extra_data=audit_extra_data)
         user.save(
             {
                 key_column_name: "",
@@ -168,7 +164,7 @@ class PasswordLessLinkLogin(PasswordLogin):
         return self.respond_unstructured(
             input_output,
             {
-                "token": token.serialize(),
+                "token": jwt.serialize(),
                 "expires_at": jwt_claims["exp"],
             },
             200,
